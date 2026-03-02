@@ -1,12 +1,16 @@
 # Eggent
 
 <p align="center">
-  <a href="./docs/assets/eggent-banner.jpeg">
-    <img src="./docs/assets/eggent-banner.jpeg" alt="Eggent banner" width="980" />
+  <a href="./docs/assets/eggent-banner.png">
+    <img src="./docs/assets/eggent-banner.png" alt="Eggent banner" width="980" />
   </a>
 </p>
 
-Eggent is a local-first AI workspace with:
+Eggent is a local-first AI workspace for building a team of focused agents.
+
+Create specialized agents with their own skill packs and MCP servers, switch between them in plain human language, and delegate each task to the agent best trained for it.
+
+Built-in platform capabilities:
 - project-based organization
 - chat and tool-driven workflows
 - memory and knowledge ingestion
