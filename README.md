@@ -20,6 +20,12 @@ Built-in platform capabilities:
 
 The app runs as a Next.js service and stores runtime state on disk (`./data`).
 
+## Releases
+
+- Latest release snapshot: [0.1.1 - Unified Context](./docs/releases/0.1.1-unified-context.md)
+- GitHub release body (ready to paste): [v0.1.1](./docs/releases/github-v0.1.1.md)
+- Release archive: [docs/releases/README.md](./docs/releases/README.md)
+
 ## Contributing and Support
 
 - Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
