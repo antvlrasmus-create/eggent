@@ -262,8 +262,8 @@ Use one host consistently. Browser storage/cookies are origin-scoped.
 Run `docker compose logs --tail 200 app` and verify `.env` values.
 
 3. Codex/Gemini OAuth says "token file was not found" on VPS  
-Eggent reads OAuth files from the runtime user home (for Docker default user this is `/home/node`).
-Run CLI login as that same user (`docker compose exec -u node app codex login`, `docker compose exec -u node app gemini`) or set `CODEX_AUTH_FILE` / `GEMINI_OAUTH_CREDS_FILE` / `GEMINI_SETTINGS_FILE` in `.env`.
+Eggent auto-discovers OAuth files in common home directories and in `data/.codex` + `data/.gemini`.
+For Docker, place files in `data/.codex/auth.json`, `data/.gemini/oauth_creds.json`, `data/.gemini/settings.json`, then recreate container (`docker compose up -d --build --force-recreate app`) so startup hook can normalize file permissions for `node`.
 
 4. Linux Docker permissions issues  
 Try with `sudo docker ...` or add your user to the `docker` group.

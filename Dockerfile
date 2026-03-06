@@ -67,11 +67,13 @@ RUN npm install --omit=dev --no-package-lock
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 COPY --from=builder /app/bundled-skills ./bundled-skills
+COPY --from=builder /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 
 RUN mkdir -p /app/data/tmp /app/data/ms-playwright /app/data/npm-cache /app/data/.cache \
+  && chmod +x /app/scripts/docker-entrypoint.sh \
   && chown -R node:node /app "${PYTHON_VENV}"
 
 USER node
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["/app/scripts/docker-entrypoint.sh"]
