@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   chatModel: {
     provider: "openai",
     model: "gpt-4o",
+    authMethod: "api_key",
     temperature: 0.7,
     maxTokens: 4096,
   },

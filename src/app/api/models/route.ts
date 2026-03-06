@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getCliProviderModels } from "@/lib/providers/cli-models";
 import { MODEL_PROVIDERS } from "@/lib/providers/model-config";
 import { getSettings } from "@/lib/storage/settings-store";
 
@@ -136,6 +137,34 @@ export async function GET(req: NextRequest) {
                         return m.id.includes("gemini");
                     })
                     .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name));
+                break;
+            }
+
+            case "codex-cli": {
+                if (type === "embedding") {
+                    models = [];
+                    break;
+                }
+                const fallback = MODEL_PROVIDERS["codex-cli"]?.models || [];
+                try {
+                    models = await getCliProviderModels("codex-cli", fallback);
+                } catch {
+                    models = [...fallback];
+                }
+                break;
+            }
+
+            case "gemini-cli": {
+                if (type === "embedding") {
+                    models = [];
+                    break;
+                }
+                const fallback = MODEL_PROVIDERS["gemini-cli"]?.models || [];
+                try {
+                    models = await getCliProviderModels("gemini-cli", fallback);
+                } catch {
+                    models = [...fallback];
+                }
                 break;
             }
 

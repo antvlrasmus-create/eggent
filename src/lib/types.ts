@@ -4,10 +4,21 @@
 
 // --- Settings ---
 
+export type ChatAuthMethod = "api_key" | "oauth";
+
 export interface ModelConfig {
-  provider: "openai" | "anthropic" | "google" | "openrouter" | "ollama" | "custom";
+  provider:
+    | "openai"
+    | "anthropic"
+    | "google"
+    | "openrouter"
+    | "ollama"
+    | "custom"
+    | "codex-cli"
+    | "gemini-cli";
   model: string;
   apiKey?: string;
+  authMethod?: ChatAuthMethod;
   baseUrl?: string;
   temperature?: number;
   maxTokens?: number;

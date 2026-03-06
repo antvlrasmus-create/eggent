@@ -24,6 +24,18 @@ const MAX_TOOL_STEPS_SUBORDINATE = 15;
 const POLL_NO_PROGRESS_BLOCK_THRESHOLD = 16;
 const POLL_BACKOFF_SCHEDULE_MS = [5000, 10000, 30000, 60000] as const;
 
+function resolveModelProviderOptions(provider: string) {
+  if (provider === "codex-cli") {
+    return {
+      openai: {
+        store: false as const,
+        instructions: "You are Eggent, an AI coding assistant.",
+      },
+    };
+  }
+  return undefined;
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (value == null || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -617,7 +629,11 @@ export async function runAgent(options: {
   agentNumber?: number;
 }) {
   const settings = await getSettings();
-  const model = createModel(settings.chatModel);
+  const providerOptions = resolveModelProviderOptions(settings.chatModel.provider);
+  const model = createModel(settings.chatModel, {
+    projectId: options.projectId,
+    currentPath: options.currentPath,
+  });
 
   // Build context
   const context: AgentContext = {
@@ -690,6 +706,7 @@ export async function runAgent(options: {
     model,
     system: systemPrompt,
     messages,
+    providerOptions,
     tools,
     stopWhen: [stepCountIs(MAX_TOOL_STEPS_PER_TURN), hasToolCall("response")],
     temperature: settings.chatModel.temperature ?? 0.7,
@@ -719,6 +736,7 @@ export async function runAgent(options: {
                   "Output only the continuation text, without repeating earlier content.",
               },
             ],
+            providerOptions,
             temperature: settings.chatModel.temperature ?? 0.7,
             maxOutputTokens: Math.min(settings.chatModel.maxTokens ?? 4096, 1200),
           });
@@ -805,7 +823,11 @@ export async function runAgentText(options: {
   runtimeData?: Record<string, unknown>;
 }): Promise<string> {
   const settings = await getSettings();
-  const model = createModel(settings.chatModel);
+  const providerOptions = resolveModelProviderOptions(settings.chatModel.provider);
+  const model = createModel(settings.chatModel, {
+    projectId: options.projectId,
+    currentPath: options.currentPath,
+  });
 
   const context: AgentContext = {
     chatId: options.chatId,
@@ -869,6 +891,7 @@ export async function runAgentText(options: {
       model,
       system: systemPrompt,
       messages,
+      providerOptions,
       tools,
       stopWhen: [stepCountIs(MAX_TOOL_STEPS_PER_TURN), hasToolCall("response")],
       temperature: settings.chatModel.temperature ?? 0.7,
@@ -940,7 +963,10 @@ export async function runSubordinateAgent(options: {
   parentHistory: ModelMessage[];
 }): Promise<string> {
   const settings = await getSettings();
-  const model = createModel(settings.chatModel);
+  const providerOptions = resolveModelProviderOptions(settings.chatModel.provider);
+  const model = createModel(settings.chatModel, {
+    projectId: options.projectId,
+  });
 
   const context: AgentContext = {
     chatId: `subordinate-${Date.now()}`,
@@ -1000,6 +1026,7 @@ export async function runSubordinateAgent(options: {
       model,
       system: systemPrompt,
       messages,
+      providerOptions,
       tools,
       stopWhen: [stepCountIs(MAX_TOOL_STEPS_SUBORDINATE), hasToolCall("response")],
       temperature: settings.chatModel.temperature ?? 0.7,

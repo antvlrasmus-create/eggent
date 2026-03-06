@@ -1,11 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, Check, ChevronDown, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  ChevronDown,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MODEL_PROVIDERS } from "@/lib/providers/model-config";
-import type { AppSettings } from "@/lib/types";
+import type { AppSettings, ChatAuthMethod } from "@/lib/types";
 
 export type UpdateSettingsFn = (path: string, value: unknown) => void;
 
@@ -204,22 +210,25 @@ export function ChatModelWizard({
   const apiKey = settings.chatModel.apiKey || "";
   const model = settings.chatModel.model;
   const providerConfig = MODEL_PROVIDERS[provider];
-  const requiresApiKey = providerConfig?.requiresApiKey ?? true;
-
+  const availableAuthMethods = providerConfig?.authMethods || ["api_key"];
+  const selectedAuthMethod = (
+    availableAuthMethods.includes((settings.chatModel.authMethod || "") as ChatAuthMethod)
+      ? settings.chatModel.authMethod
+      : providerConfig?.defaultAuthMethod || availableAuthMethods[0]
+  ) as ChatAuthMethod;
+  const requiresApiKey =
+    selectedAuthMethod === "api_key" && (providerConfig?.requiresApiKey ?? true);
+  const isCliProvider = provider === "codex-cli" || provider === "gemini-cli";
   const hasProvider = !!provider;
-  const hasApiKey = !requiresApiKey || !!apiKey;
   const hasModel = !!model;
-  const currentStep = !hasProvider
-    ? 1
-    : !hasApiKey
-      ? 2
-      : !hasModel
-        ? requiresApiKey
-          ? 3
-          : 2
-        : requiresApiKey
-          ? 4
-          : 3;
+
+  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{
+    connected: boolean;
+    message: string;
+    detail?: string;
+  } | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const { models, loading, error } = useModels(
     provider,
@@ -229,20 +238,105 @@ export function ChatModelWizard({
     settings.chatModel.baseUrl
   );
 
+  const checkConnection = useCallback(async () => {
+    if (!isCliProvider) {
+      setConnectionStatus(null);
+      setConnectionError(null);
+      return;
+    }
+
+    setConnectionLoading(true);
+    setConnectionError(null);
+    try {
+      const params = new URLSearchParams({
+        provider,
+        method: selectedAuthMethod,
+      });
+      if (apiKey.trim()) {
+        params.set("hasApiKey", "1");
+      }
+      const response = await fetch(`/api/provider-auth/status?${params.toString()}`, {
+        method: "GET",
+      });
+      const payload = (await response.json()) as {
+        connected?: boolean;
+        message?: string;
+        detail?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to check connection");
+      }
+      setConnectionStatus({
+        connected: Boolean(payload.connected),
+        message: payload.message || "Status updated",
+        detail: payload.detail,
+      });
+    } catch (cause) {
+      setConnectionStatus(null);
+      setConnectionError(
+        cause instanceof Error ? cause.message : "Failed to check connection"
+      );
+    } finally {
+      setConnectionLoading(false);
+    }
+  }, [apiKey, isCliProvider, provider, selectedAuthMethod]);
+
+  useEffect(() => {
+    if (!provider) {
+      setConnectionStatus(null);
+      setConnectionError(null);
+      return;
+    }
+    if (!isCliProvider) {
+      setConnectionStatus(null);
+      setConnectionError(null);
+      return;
+    }
+    void checkConnection();
+  }, [checkConnection, isCliProvider, provider, selectedAuthMethod]);
+
+  useEffect(() => {
+    if (!provider) return;
+    if (settings.chatModel.authMethod === selectedAuthMethod) return;
+    updateSettings("chatModel.authMethod", selectedAuthMethod);
+  }, [
+    provider,
+    selectedAuthMethod,
+    settings.chatModel.authMethod,
+    updateSettings,
+  ]);
+
+  const apiKeyConnectionReady = !requiresApiKey || !!apiKey.trim();
+  const hasConnection = isCliProvider
+    ? Boolean(connectionStatus?.connected)
+    : selectedAuthMethod === "oauth"
+      ? Boolean(connectionStatus?.connected)
+      : apiKeyConnectionReady;
+  const currentStep = !hasProvider
+    ? 1
+    : !selectedAuthMethod
+      ? 2
+      : !hasConnection
+        ? 3
+        : !hasModel
+          ? 4
+          : 5;
+  const showApiKeyInput = selectedAuthMethod === "api_key" && requiresApiKey;
+  const connectionHelp =
+    selectedAuthMethod === "oauth"
+      ? providerConfig?.connectionHelp?.oauth
+      : providerConfig?.connectionHelp?.apiKey;
+
   return (
     <section className="border rounded-xl p-5 bg-card space-y-5 transition-all duration-300">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-lg">Chat Model</h3>
         <div className="flex items-center gap-4">
           <StepIndicator step={1} currentStep={currentStep} label="Provider" />
-          {requiresApiKey && (
-            <StepIndicator step={2} currentStep={currentStep} label="API Key" />
-          )}
-          <StepIndicator
-            step={requiresApiKey ? 3 : 2}
-            currentStep={currentStep}
-            label="Model"
-          />
+          <StepIndicator step={2} currentStep={currentStep} label="Method" />
+          <StepIndicator step={3} currentStep={currentStep} label="Connect" />
+          <StepIndicator step={4} currentStep={currentStep} label="Model" />
         </div>
       </div>
 
@@ -256,13 +350,24 @@ export function ChatModelWizard({
             const nextProvider = event.target.value;
             updateSettings("chatModel.provider", nextProvider);
             updateSettings("chatModel.model", "");
+            const nextProviderConfig = MODEL_PROVIDERS[nextProvider];
+            const nextAuthMethod =
+              nextProviderConfig?.defaultAuthMethod ||
+              nextProviderConfig?.authMethods?.[0] ||
+              "api_key";
+            updateSettings("chatModel.authMethod", nextAuthMethod);
 
             if (nextProvider === "ollama") {
               updateSettings("chatModel.baseUrl", "http://localhost:11434/v1");
               updateSettings("chatModel.apiKey", "");
+            } else if (nextProvider === "codex-cli" || nextProvider === "gemini-cli") {
+              updateSettings("chatModel.baseUrl", "");
             } else {
               updateSettings("chatModel.baseUrl", "");
             }
+
+            setConnectionStatus(null);
+            setConnectionError(null);
           }}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm"
         >
@@ -279,44 +384,147 @@ export function ChatModelWizard({
       <div
         className={`space-y-2 transition-all duration-300 ${
           !hasProvider ? "opacity-40 pointer-events-none" : ""
-        } ${!requiresApiKey ? "hidden" : ""}`}
+        }`}
       >
         <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Step 2 — API Key
+          Step 2 — Connection Method
         </Label>
-        <Input
-          type="password"
-          value={apiKey}
-          onChange={(event) => updateSettings("chatModel.apiKey", event.target.value)}
-          placeholder={
-            providerConfig?.envKey
-              ? `Enter key or set ${providerConfig.envKey} in .env`
-              : "sk-..."
-          }
+        <select
+          value={selectedAuthMethod}
+          onChange={(event) => {
+            const method = event.target.value as ChatAuthMethod;
+            updateSettings("chatModel.authMethod", method);
+            updateSettings("chatModel.model", "");
+            if (method === "oauth") {
+              updateSettings("chatModel.apiKey", "");
+            }
+            setConnectionStatus(null);
+            setConnectionError(null);
+          }}
           disabled={!hasProvider}
-        />
-        {providerConfig?.envKey && (
-          <p className="text-xs text-muted-foreground">
-            Or set{" "}
-            <code className="bg-muted px-1 py-0.5 rounded text-[11px]">
-              {providerConfig.envKey}
-            </code>{" "}
-            as an environment variable
-          </p>
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          {availableAuthMethods.map((authMethod) => (
+            <option key={authMethod} value={authMethod}>
+              {authMethod === "oauth" ? "OAuth" : "API key"}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div
+        className={`space-y-3 transition-all duration-300 ${
+          !hasProvider || !selectedAuthMethod ? "opacity-40 pointer-events-none" : ""
+        }`}
+      >
+        <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Step 3 — Connection
+        </Label>
+
+        {showApiKeyInput ? (
+          <div className="space-y-2">
+            <Input
+              type="password"
+              value={apiKey}
+              onChange={(event) => updateSettings("chatModel.apiKey", event.target.value)}
+              placeholder={
+                providerConfig?.envKey
+                  ? `Enter key or set ${providerConfig.envKey} in .env`
+                  : "sk-..."
+              }
+              disabled={!hasProvider}
+            />
+            {providerConfig?.envKey && (
+              <p className="text-xs text-muted-foreground">
+                Or set{" "}
+                <code className="bg-muted px-1 py-0.5 rounded text-[11px]">
+                  {providerConfig.envKey}
+                </code>{" "}
+                as an environment variable
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground rounded-lg border bg-muted/30 p-3">
+            API key input is not required for this connection mode.
+          </div>
+        )}
+
+        {connectionHelp && (
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+            <p className="text-sm font-medium">{connectionHelp.title}</p>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+              {connectionHelp.steps.map((step, idx) => (
+                <li key={`${provider}-${selectedAuthMethod}-help-${idx}`}>{step}</li>
+              ))}
+            </ul>
+            {connectionHelp.command && (
+              <p className="text-sm">
+                Command:{" "}
+                <code className="bg-muted px-1 py-0.5 rounded text-[11px]">
+                  {connectionHelp.command}
+                </code>
+              </p>
+            )}
+          </div>
+        )}
+
+        {isCliProvider && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+            OAuth tokens are read from local CLI auth files.
+          </div>
+        )}
+
+        {isCliProvider && (
+          <button
+            type="button"
+            onClick={() => void checkConnection()}
+            disabled={connectionLoading}
+            className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted disabled:opacity-60"
+          >
+            {connectionLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            Check connection
+          </button>
+        )}
+
+        {provider === "ollama" && selectedAuthMethod === "api_key" && (
+          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2">
+            <Check className="size-4" />
+            API Key not required — connecting to local Ollama
+          </div>
+        )}
+
+        {isCliProvider && connectionStatus && (
+          <div
+            className={`rounded-lg border px-3 py-2 text-sm ${
+              connectionStatus.connected
+                ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+            }`}
+          >
+            <p>{connectionStatus.message}</p>
+            {connectionStatus.detail && (
+              <p className="mt-1 text-xs opacity-80">{connectionStatus.detail}</p>
+            )}
+          </div>
+        )}
+
+        {connectionError && (
+          <div className="flex items-center gap-1.5 text-xs text-red-500">
+            <AlertCircle className="size-3" />
+            {connectionError}
+          </div>
         )}
       </div>
 
-      {hasProvider && !requiresApiKey && provider === "ollama" && (
-        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2">
-          <Check className="size-4" />
-          API Key not required — connecting to local Ollama
-        </div>
-      )}
-
-      {(provider === "custom" || provider === "ollama") && (
+      {(provider === "custom" || provider === "ollama") && selectedAuthMethod === "api_key" && (
         <div
           className={`space-y-2 transition-all duration-300 ${
-            !hasApiKey ? "opacity-40 pointer-events-none" : ""
+            !apiKeyConnectionReady ? "opacity-40 pointer-events-none" : ""
           }`}
         >
           <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -330,25 +538,25 @@ export function ChatModelWizard({
                 ? "http://localhost:11434/v1"
                 : "https://api.example.com/v1"
             }
-            disabled={!hasApiKey}
+            disabled={!apiKeyConnectionReady}
           />
         </div>
       )}
 
       <div
         className={`space-y-2 transition-all duration-300 ${
-          !hasApiKey ? "opacity-40 pointer-events-none" : ""
+          !hasConnection ? "opacity-40 pointer-events-none" : ""
         }`}
       >
         <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {requiresApiKey ? "Step 3" : "Step 2"} — Model
+          Step 4 — Model
         </Label>
         <ModelSelect
           value={model}
           models={models}
           loading={loading}
           error={error}
-          disabled={!hasApiKey}
+          disabled={!hasConnection}
           onChange={(value) => updateSettings("chatModel.model", value)}
           placeholder="Select model..."
         />
