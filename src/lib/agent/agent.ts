@@ -597,6 +597,88 @@ function getLastAssistantText(messages: ModelMessage[]): string {
   return "";
 }
 
+function extractToolResultOutputText(output: unknown): string {
+  if (typeof output === "string") {
+    return output;
+  }
+  const record = asRecord(output);
+  if (!record) {
+    if (output === null || output === undefined) {
+      return "";
+    }
+    try {
+      return JSON.stringify(output);
+    } catch {
+      return String(output);
+    }
+  }
+
+  const value = "value" in record ? record.value : undefined;
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value !== undefined) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  if (typeof record.message === "string") {
+    return record.message;
+  }
+
+  try {
+    return JSON.stringify(record);
+  } catch {
+    return String(record);
+  }
+}
+
+function getLastResponseToolText(messages: ModelMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const msg = messages[i];
+
+    if (msg.role === "tool" && Array.isArray(msg.content)) {
+      for (let j = msg.content.length - 1; j >= 0; j -= 1) {
+        const part = msg.content[j];
+        if (!(typeof part === "object" && part !== null)) continue;
+        if (!("type" in part) || part.type !== "tool-result") continue;
+        const toolName =
+          "toolName" in part && typeof (part as { toolName?: unknown }).toolName === "string"
+            ? ((part as { toolName: string }).toolName as string)
+            : "";
+        if (toolName !== "response") continue;
+
+        const output =
+          "output" in part ? (part as { output?: unknown }).output : (part as { result?: unknown }).result;
+        const text = extractToolResultOutputText(output).trim();
+        if (text) return text;
+      }
+    }
+
+    if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      for (let j = msg.content.length - 1; j >= 0; j -= 1) {
+        const part = msg.content[j];
+        if (!(typeof part === "object" && part !== null)) continue;
+        if (!("type" in part) || part.type !== "tool-call") continue;
+        const toolName =
+          "toolName" in part && typeof (part as { toolName?: unknown }).toolName === "string"
+            ? ((part as { toolName: string }).toolName as string)
+            : "";
+        if (toolName !== "response") continue;
+        const input =
+          "input" in part ? (part as { input?: unknown }).input : undefined;
+        const inputRecord = asRecord(input);
+        const message = typeof inputRecord?.message === "string" ? inputRecord.message.trim() : "";
+        if (message) return message;
+      }
+    }
+  }
+  return "";
+}
+
 function shouldAutoContinueAssistant(
   text: string,
   finishReason?: string
@@ -898,7 +980,16 @@ export async function runAgentText(options: {
       maxOutputTokens: settings.chatModel.maxTokens ?? 4096,
     });
 
+    const responseMessages = (
+      generated as unknown as { response?: { messages?: ModelMessage[] } }
+    ).response?.messages;
+
     const text = generated.text ?? "";
+    const fallbackReply =
+      Array.isArray(responseMessages) && responseMessages.length > 0
+        ? getLastResponseToolText(responseMessages) || getLastAssistantText(responseMessages)
+        : "";
+    const finalText = text.trim() ? text : fallbackReply;
 
     try {
       const latest = await getChat(options.chatId);
@@ -911,10 +1002,6 @@ export async function runAgentText(options: {
           createdAt: now,
         });
 
-        const responseMessages = (
-          generated as unknown as { response?: { messages?: ModelMessage[] } }
-        ).response?.messages;
-
         if (Array.isArray(responseMessages) && responseMessages.length > 0) {
           for (const msg of responseMessages) {
             latest.messages.push(...convertModelMessageToChatMessages(msg, now));
@@ -923,7 +1010,7 @@ export async function runAgentText(options: {
           latest.messages.push({
             id: crypto.randomUUID(),
             role: "assistant",
-            content: text,
+            content: finalText,
             createdAt: now,
           });
         }
@@ -941,7 +1028,7 @@ export async function runAgentText(options: {
       reason: "agent_turn_finished",
     });
 
-    return text;
+    return finalText;
   } finally {
     if (mcpCleanup) {
       try {
