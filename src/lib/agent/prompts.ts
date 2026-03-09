@@ -7,6 +7,7 @@ import {
   getWorkDir,
 } from "@/lib/storage/project-store";
 import { getChatFiles } from "@/lib/storage/chat-files-store";
+import type { AgentRole } from "@/lib/types";
 
 const PROMPTS_DIR = path.join(process.cwd(), "src", "prompts");
 
@@ -69,11 +70,24 @@ export async function buildSystemPrompt(options: {
   chatId?: string;
   agentNumber?: number;
   tools?: string[];
+  role?: AgentRole;
 }): Promise<string> {
   const parts: string[] = [];
 
   // 1. Base system prompt
-  const basePrompt = await loadPrompt("system");
+  let basePrompt = "";
+  if (options.role) {
+    try {
+      const rolePath = path.join(process.cwd(), "src", "lib", "agent", "roles", `${options.role}.md`);
+      basePrompt = await fs.readFile(rolePath, "utf-8");
+    } catch {
+      // fallback
+    }
+  }
+  
+  if (!basePrompt) {
+    basePrompt = await loadPrompt("system");
+  }
   if (basePrompt) {
     parts.push(basePrompt);
   } else {
@@ -86,7 +100,8 @@ export async function buildSystemPrompt(options: {
     `\n## Agent Identity\nYou are AI Agent` +
     (agentNum === 0
       ? "You are the primary agent communicating directly with the user."
-      : `You are a subordinate agent (level ${agentNum}), delegated a task by Agent ${agentNum - 1}.`)
+      : `You are a subordinate agent (level ${agentNum}), delegated a task by Agent ${agentNum - 1}.` +
+        (options.role ? ` Your assigned role is: ${options.role.toUpperCase()}.` : ""))
   );
 
   // 3. Tool prompts
@@ -106,7 +121,7 @@ export async function buildSystemPrompt(options: {
         `MCP execution rules:\n` +
         `- After an error, do not repeat the same MCP tool call with identical arguments.\n` +
         `- Read error details and change the payload before retrying.\n` +
-        `- For n8n workflow updates, use a real workflow id from a successful tool response; never guess ids.`
+        `- For n8n workflow updates, use: a real workflow id from a successful tool response; never guess ids.`
       );
     }
 
@@ -222,26 +237,21 @@ function formatFileSize(bytes: number): string {
 }
 
 function getDefaultSystemPrompt(): string {
-  return `# Eggent Agent
-
+  return `# Eggent Agent\n
 You are a helpful AI assistant with access to tools that allow you to:
 - Execute code (Python, Node.js, Shell commands)
 - Save and retrieve information from persistent memory
 - Search the internet for current information
 - Query a knowledge base of documents
-- Delegate complex subtasks to subordinate agents
-
-## Guidelines
-
+- Delegate complex subtasks to subordinate agents\n
+## Guidelines\n
 1. **Be helpful and direct.** Answer the user's question or complete their task.
 2. **Use tools when needed.** If a task requires running code, searching, or remembering information, use the appropriate tool.
 3. **Think step by step.** For complex tasks, break them down and use tools iteratively.
 4. **Memory management.** Save important facts, preferences, and solutions to memory for future reference.
 5. **Code execution.** When writing code, prefer Python for data processing and Node.js for web tasks. Always handle errors.
-6. **Respond clearly.** Use markdown formatting for readability. Include code blocks with language tags.
-
-## Important Rules
-
+6. **Respond clearly.** Use markdown formatting for readability. Include code blocks with language tags.\n
+## Important Rules\n
 - Always use the response tool to provide your final answer to the user.
 - If you need to execute code, use the code_execution tool.
 - If the user asks you to remember something, save it to memory.
