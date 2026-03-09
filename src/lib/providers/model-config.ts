@@ -127,4 +127,43 @@ export const MODEL_PROVIDERS: Record<string, ProviderConfig> = {
       },
     },
   },
+  nvidia: {
+    name: "NVIDIA NIM",
+    models: [
+      { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5 (NIM)" },
+      { id: "meta/llama-3.3-70b-instruct", name: "Llama 3.3 70B Instruct" },
+      { id: "nvidia/llama-3.1-nemotron-70b-instruct", name: "Llama 3.1 Nemotron 70B" },
+      { id: "deepseek-ai/deepseek-v3", name: "DeepSeek V3 (NIM)" },
+    ],
+    envKey: "NVIDIA_API_KEY",
+    requiresApiKey: true,
+    authMethods: ["api_key"],
+    defaultAuthMethod: "api_key",
+    baseUrl: "https://integrate.api.nvidia.com/v1",
+  },
+  groq: {
+    name: "Groq",
+    models: [
+      { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B Versatile" },
+      { id: "llama-3.1-70b-versatile", name: "Llama 3.1 70B Versatile" },
+      { id: "llama3-70b-8192", name: "Llama 3 70B" },
+      { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B" },
+    ],
+    envKey: "GROQ_API_KEY",
+    requiresApiKey: true,
+    authMethods: ["api_key"],
+    defaultAuthMethod: "api_key",
+    baseUrl: "https://api.groq.com/openai/v1",
+    defaultPath: "/v1",
+  },
+  pollinations: {
+    name: "Pollinations",
+    models: [
+      { id: "openai", name: "OpenAI (Pollinations)" },
+      { id: "mistral", name: "Mistral (Pollinations)" },
+    ],
+    requiresApiKey: false,
+    authMethods: ["api_key"],
+    defaultAuthMethod: "api_key",
+  },
 };
