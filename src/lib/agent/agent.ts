@@ -15,7 +15,7 @@ import { createAgentTools } from "@/lib/tools/tool";
 import { getProjectMcpTools } from "@/lib/mcp/client";
 import type { AgentContext } from "@/lib/agent/types";
 import { History } from "@/lib/agent/history";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, AgentRole } from "@/lib/types";
 import { publishUiSyncEvent } from "@/lib/realtime/event-bus";
 
 const LLM_LOG_BORDER = "═".repeat(60);
@@ -1048,6 +1048,7 @@ export async function runSubordinateAgent(options: {
   projectId?: string;
   parentAgentNumber: number;
   parentHistory: ModelMessage[];
+      role?: AgentRole;
 }): Promise<string> {
   const settings = await getSettings();
   const providerOptions = resolveModelProviderOptions(settings.chatModel.provider);
@@ -1085,6 +1086,7 @@ export async function runSubordinateAgent(options: {
     projectId: options.projectId,
     agentNumber: context.agentNumber,
     tools: toolNames,
+          role: options.role,
   });
 
   // Include relevant parent history for context
