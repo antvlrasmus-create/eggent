@@ -1,4 +1,5 @@
 import type { ModelMessage } from "ai";
+import type { AgentRole } from "@/lib/types";
 
 const MAX_SUBORDINATE_CONCURRENCY = 2;
 const SUBORDINATE_RETRY_DELAYS_MS = [1000, 2500] as const;
@@ -241,7 +242,8 @@ export async function callSubordinate(
   task: string,
   projectId: string | undefined,
   parentAgentNumber: number,
-  parentHistory: ModelMessage[]
+  parentHistory: ModelMessage[],
+  role?: AgentRole
 ): Promise<string> {
   try {
     // Dynamic import to avoid circular dependency
@@ -254,11 +256,12 @@ export async function callSubordinate(
           projectId,
           parentAgentNumber,
           parentHistory,
+          role,
         })
       )
     );
 
-    return `Subordinate Agent ${parentAgentNumber + 1} completed the task:\n\n${result}`;
+    return `Subordinate Agent ${parentAgentNumber + 1} (${role || "general"}) completed the task:\n\n${result}`;
   } catch (error) {
     return `Subordinate agent error: ${formatSubordinateError(error)}`;
   }
