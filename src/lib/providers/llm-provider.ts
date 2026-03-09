@@ -1603,7 +1603,28 @@ export function createModel(
         defaultPath: "/v1",
       });
     }
-
+case "nvidia": {
+      return createOpenAICompatibleChatModel(config, {
+        providerName: "nvidia",
+        apiKey: config.apiKey || process.env.NVIDIA_API_KEY || "",
+        fallbackBaseUrl: "https://integrate.api.nvidia.com/v1",
+      });
+    }
+    case "groq": {
+      return createOpenAICompatibleChatModel(config, {
+        providerName: "groq",
+        apiKey: config.apiKey || process.env.GROQ_API_KEY || "",
+        fallbackBaseUrl: "https://api.groq.com/openai/v1",
+        defaultPath: "/v1",
+      });
+    }
+    case "pollinations": {
+      return createOpenAICompatibleChatModel(config, {
+        providerName: "pollinations",
+        apiKey: config.apiKey || "pollinations",
+        fallbackBaseUrl: "https://text.pollinations.ai/openai",
+      });
+    }
     case "codex-cli": {
       try {
         return createCodexNativeOauthModel(config);
