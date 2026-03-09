@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { embedTexts } from "@/lib/memory/embeddings";
 import type { VectorDocument, AppSettings } from "@/lib/types";
+import * as supabaseMemory from "./supabase-memory";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 
@@ -92,6 +93,10 @@ export async function insertMemory(
   settings: AppSettings,
   additionalMetadata: Record<string, unknown> = {}
 ): Promise<string> {
+  if (supabaseMemory.isSupabaseAvailable()) {
+    return supabaseMemory.insertMemory(text, area, subdir, settings, additionalMetadata);
+  }
+
   const db = await loadDB(subdir);
 
   const embeddings = await embedTexts([text], settings.embeddingsModel);
@@ -127,6 +132,10 @@ export async function searchMemory(
   settings: AppSettings,
   areaFilter?: string
 ): Promise<{ id: string; text: string; score: number; metadata: Record<string, unknown> }[]> {
+  if (supabaseMemory.isSupabaseAvailable()) {
+    return supabaseMemory.searchMemory(query, limit, threshold, subdir, settings, areaFilter);
+  }
+
   const db = await loadDB(subdir);
   if (db.documents.length === 0) return [];
 
@@ -163,6 +172,10 @@ export async function deleteMemoryByQuery(
   subdir: string,
   settings: AppSettings
 ): Promise<number> {
+  if (supabaseMemory.isSupabaseAvailable()) {
+    return supabaseMemory.deleteMemoryByQuery(query, subdir, settings);
+  }
+
   const matches = await searchMemory(query, 5, 0.8, subdir, settings);
   if (matches.length === 0) return 0;
 
@@ -180,6 +193,10 @@ export async function deleteMemoryById(
   id: string,
   subdir: string
 ): Promise<boolean> {
+  if (supabaseMemory.isSupabaseAvailable()) {
+    return supabaseMemory.deleteMemoryById(id, subdir);
+  }
+
   const db = await loadDB(subdir);
   const before = db.documents.length;
   db.documents = db.documents.filter((d) => d.id !== id);
@@ -198,6 +215,10 @@ export async function deleteMemoryByMetadata(
   value: unknown,
   subdir: string
 ): Promise<number> {
+  if (supabaseMemory.isSupabaseAvailable()) {
+    return supabaseMemory.deleteMemoryByMetadata(key, value, subdir);
+  }
+
   const db = await loadDB(subdir);
   const before = db.documents.length;
   db.documents = db.documents.filter((d) => d.metadata[key] !== value);
@@ -215,6 +236,10 @@ export async function deleteMemoryByMetadata(
 export async function getAllMemories(
   subdir: string
 ): Promise<{ id: string; text: string; metadata: Record<string, unknown> }[]> {
+  if (supabaseMemory.isSupabaseAvailable()) {
+    return supabaseMemory.getAllMemories(subdir);
+  }
+
   const db = await loadDB(subdir);
   return db.documents.map((d) => ({
     id: d.id,
@@ -232,6 +257,10 @@ const FILENAME_META = "filename";
 export async function getChunkCountsByFilename(
   subdir: string
 ): Promise<Record<string, number>> {
+  if (supabaseMemory.isSupabaseAvailable()) {
+    return supabaseMemory.getChunkCountsByFilename(subdir);
+  }
+
   const db = await loadDB(subdir);
   const counts: Record<string, number> = {};
   for (const doc of db.documents) {
@@ -251,6 +280,10 @@ export async function getChunksByFilename(
   subdir: string,
   filename: string
 ): Promise<{ id: string; text: string; index: number }[]> {
+  if (supabaseMemory.isSupabaseAvailable()) {
+    return supabaseMemory.getChunksByFilename(subdir, filename);
+  }
+
   const db = await loadDB(subdir);
   const chunks = db.documents.filter(
     (d) =>
