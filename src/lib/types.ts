@@ -15,7 +15,10 @@ export interface ModelConfig {
     | "ollama"
     | "custom"
     | "codex-cli"
-    | "gemini-cli";
+    | "gemini-cli"
+      | "nvidia"
+      | "groq"
+      | "pollinations";
   model: string;
   apiKey?: string;
   authMethod?: ChatAuthMethod;
@@ -192,6 +195,15 @@ export interface KnowledgeFile {
 }
 
 // --- Agent ---
+export type AgentRole = "orchestrator" | "coder" | "reviewer" | "researcher" | "browser";
+export interface MultiAgentRoleConfig {
+    role: AgentRole;
+    model: ModelConfig;
+    systemPrompt: string;
+    tools: string[];
+    maxSteps: number;
+    temperature: number;
+}
 
 export interface AgentConfig {
   chatModel: ModelConfig;
@@ -200,6 +212,7 @@ export interface AgentConfig {
   memorySubdir: string;
   knowledgeSubdirs: string[];
   projectId?: string;
+    roleConfigs?: Record<AgentRole, MultiAgentRoleConfig>;
 }
 
 export interface ToolCall {
