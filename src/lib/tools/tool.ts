@@ -1812,28 +1812,35 @@ export function createAgentTools(
     });
   }
 
-  // Call subordinate tool (only for agents below max depth)
-  if ((context.agentNumber ?? 0) < 3) {
-    tools.call_subordinate = tool({
-      description:
-        "Delegate a complex subtask to a subordinate agent. The subordinate has access to all tools and will complete the task independently. Use this for complex multi-step tasks that would benefit from focused attention.",
-      inputSchema: z.object({
-        task: z
-          .string()
-          .describe(
-            "Detailed description of the task to delegate. Include all necessary context."
-          ),
-      }),
-      execute: async ({ task }) => {
-        return callSubordinate(
-          task,
-          context.projectId,
-          context.agentNumber,
-          context.history
-        );
-      },
-    });
-  }
-
+  // Call subordinate
+    // Call subordinate tool (only for agents below max depth)
+    if ((context.agentNumber ?? 0) < 3) {
+          tools.call_subordinate = tool({
+                  description:
+                            "Delegate a complex subtask to a subordinate agent. The subordinate has access to all tools and will complete the task independently. Use this for complex multi-step tasks that would benefit from focused attention.",
+                  inputSchema: z.object({
+                            task: z
+                              .string()
+                              .describe(
+                                            "Detailed description of the task to delegate. Include all necessary context."
+                                          ),
+                            role: z
+                              .enum(["orchestrator", "coder", "reviewer", "researcher", "browser"])
+                              .optional()
+                              .describe(
+                                            "Optional role to assign to the subordinate agent to set its behavior appropriately."
+                                          ),
+                  }),
+                  execute: async ({ task, role }) => {
+                            return callSubordinate(
+                                        task,
+                                        context.projectId,
+                                        context.agentNumber,
+                                        context.history,
+                                        role as any
+                                      );
+                  },
+          });
+    }
   return tools;
 }
