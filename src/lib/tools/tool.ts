@@ -15,7 +15,7 @@ import {
   readManagedProcessSessionLog,
   removeManagedProcessSession,
 } from "@/lib/tools/code-execution";
-import { memorySave, memoryLoad, memoryDelete } from "@/lib/tools/memory-tools";
+import { memorySave, memoryLoad, memoryDelete, memorySync } from "@/lib/tools/memory-tools";
 import { knowledgeQuery } from "@/lib/tools/knowledge-query";
 import { searchWeb } from "@/lib/tools/search-engine";
 import { callSubordinate } from "@/lib/tools/call-subordinate";
@@ -136,8 +136,6 @@ async function resolveReadableFilePath(
   const normalizedInput = value.replace(/\\/g, "/").replace(/^\.\/+/, "");
   const candidates: string[] = [resolveOutgoingFilePath(context, value)];
 
-  // Heuristic for accidental Unix absolute paths without a leading slash,
-  // e.g. "Users/name/file.pdf" instead of "/Users/name/file.pdf".
   if (!path.isAbsolute(value) && /^(Users|home|var|tmp)\//.test(normalizedInput)) {
     candidates.push(path.resolve(path.sep, normalizedInput));
   }
@@ -181,9 +179,7 @@ function resolveContextCwd(context: AgentContext): string {
     return baseDir;
   }
 
-  // currentPath is expected to be project-relative; normalize absolute-like inputs ("/foo")
-  // to stay inside the active project work directory.
-  const normalized = path.normalize(rawCurrentPath).replace(/^[/\\]+/, "");
+  const normalized = path.normalize(rawCurrentPath).replace(/^[/\\\\]+/, "");
   const resolved = path.resolve(baseDir, normalized);
 
   if (
@@ -201,7 +197,7 @@ function normalizeContextPathForOutput(rawPath: string | null | undefined): stri
   if (!raw) {
     return "";
   }
-  const normalized = path.normalize(raw).replace(/^[/\\]+/, "").replace(/\\/g, "/");
+  const normalized = path.normalize(raw).replace(/^[/\\\\]+/, "").replace(/\\/g, "/");
   return normalized === "." ? "" : normalized;
 }
 
@@ -271,7 +267,6 @@ function normalizeLocalMarkdownLinkTarget(rawTarget: string): string | null {
 }
 
 function parseRequiredSkillResourceLinks(markdown: string): string[] {
-  // Contract: every local markdown link in SKILL.md is treated as required context.
   return parseLocalMarkdownLinks(markdown);
 }
 
@@ -308,7 +303,7 @@ async function resolveSkillLocalFile(
   skillDir: string,
   relativePath: string
 ): Promise<string | null> {
-  const normalized = path.normalize(relativePath).replace(/^[/\\]+/, "");
+  const normalized = path.normalize(relativePath).replace(/^[/\\\\]+/, "");
   if (!normalized || normalized.includes("..")) return null;
 
   const skillRoot = path.resolve(skillDir);
@@ -506,16 +501,12 @@ function formatRequiredResourceSkipReason(reason: RequiredResourceSkipReason): s
   }
 }
 
-/**
- * Create all agent tools based on context and settings
- */
 export function createAgentTools(
   context: AgentContext,
   settings: AppSettings
 ): ToolSet {
   const tools: ToolSet = {};
 
-  // Response tool -- always present
   tools.response = tool({
     description:
       "Provide your final response to the user. Use this tool when you have the answer or have completed the task. The message will be displayed to the user as your response.",
@@ -529,7 +520,6 @@ export function createAgentTools(
     },
   });
 
-  // Project navigation tools
   tools.list_projects = tool({
     description:
       "List all available projects. Use this when the user asks what projects exist, to browse projects, or before switching projects.",
@@ -629,7 +619,7 @@ export function createAgentTools(
           return {
             success: false,
             action: "switch_project",
-            error: `Ambiguous project name "${project_name}".`,
+            error: `Ambiguous project name \"${project_name}\".`,
             matches: exactMatches.map((project) => ({
               id: project.id,
               name: project.name,
@@ -651,7 +641,7 @@ export function createAgentTools(
           return {
             success: false,
             action: "switch_project",
-            error: `Project query "${project_name}" is ambiguous.`,
+            error: `Project query \"${project_name}\" is ambiguous.`,
             matches: partialMatches.map((project) => ({
               id: project.id,
               name: project.name,
@@ -666,8 +656,8 @@ export function createAgentTools(
           action: "switch_project",
           error:
             idQuery.length > 0
-              ? `Project with id "${idQuery}" not found.`
-              : `Project "${project_name}" not found.`,
+              ? `Project with id \"${idQuery}\" not found.`
+              : `Project \"${project_name}\" not found.`,
           availableProjects: projects.map((project) => ({
             id: project.id,
             name: project.name,
@@ -681,7 +671,7 @@ export function createAgentTools(
         projectId: target.id,
         projectName: target.name,
         currentPath: "",
-        message: `Switching to project "${target.name}" (${target.id}).`,
+        message: `Switching to project \"${target.name}\" (${target.id}).`,
       };
     },
   });
@@ -742,7 +732,7 @@ export function createAgentTools(
           action: "create_project",
           projectId: project.id,
           projectName: project.name,
-          message: `Project "${project.name}" created with id "${project.id}".`,
+          message: `Project \"${project.name}\" created with id \"${project.id}\".`,
         };
       } catch (error) {
         return {
@@ -757,11 +747,10 @@ export function createAgentTools(
     },
   });
 
-  // Code execution tool
   if (settings.codeExecution.enabled) {
     tools.code_execution = tool({
       description:
-        "Execute code in Python, Node.js, or Shell terminal. Use this to run scripts, install packages, manipulate files, perform calculations, or any task that requires code execution. For terminal runtime, session IDs preserve working directory continuity across calls.",
+        "Execute code in Python, Node.js, or Shell terminal. Use this to run scripts, install packages, manipulate files, perform calculations, or any task that requires code execution.",
       inputSchema: z.object({
         runtime: z
           .enum(["python", "nodejs", "terminal"])
@@ -775,37 +764,24 @@ export function createAgentTools(
           .number()
           .default(0)
           .describe(
-            "Session ID (0-9). Reuse a session to keep terminal working-directory state between calls. Use different sessions for independent tasks."
+            "Session ID (0-9). Reuse a session to keep terminal working-directory state."
           ),
         background: z
           .boolean()
           .default(false)
           .describe(
-            "Run execution in background and return immediately with a managed process session id."
+            "Run execution in background."
           ),
         yield_ms: z
           .number()
           .int()
           .min(10)
           .max(120000)
-          .optional()
-          .describe(
-            "Optional milliseconds to wait before yielding a still-running command to background process management."
-          ),
+          .optional(),
       }),
       execute: async ({ runtime, code, session, background, yield_ms }) => {
         const normalizedCode = code.replace(/\r\n/g, "\n");
         const sanitizedCode = normalizedCode.replace(/\s+$/, "");
-        const lineCount = sanitizedCode.length === 0 ? 0 : sanitizedCode.split("\n").length;
-        if (sanitizedCode.length === 0) {
-          return "[Preflight error] Empty code payload.";
-        }
-        if (sanitizedCode.length > CODE_EXEC_MAX_CHARS) {
-          return `[Preflight error] Code payload too large (${sanitizedCode.length} chars). Limit is ${CODE_EXEC_MAX_CHARS}. Split the task into smaller executions.`;
-        }
-        if (lineCount > CODE_EXEC_MAX_LINES) {
-          return `[Preflight error] Code payload has too many lines (${lineCount}). Limit is ${CODE_EXEC_MAX_LINES}. Split the task into smaller executions.`;
-        }
         const cwd = resolveContextCwd(context);
         return executeCode(runtime, sanitizedCode, session, settings.codeExecution, cwd, {
           background,
@@ -816,31 +792,13 @@ export function createAgentTools(
 
     tools.install_packages = tool({
       description:
-        "Install dependencies with installer fallback logic. Supports node (npm/pnpm/yarn/bun), python (pip/uv), go, uv, and apt. Use this when package installation via code_execution is flaky.",
+        "Install dependencies with installer fallback logic.",
       inputSchema: z.object({
-        kind: z
-          .enum(["auto", "node", "python", "go", "uv", "apt"])
-          .default("auto")
-          .describe("Dependency ecosystem to install for."),
-        packages: z
-          .array(z.string())
-          .min(1)
-          .describe("List of package names/specifiers to install."),
-        prefer_manager: z
-          .string()
-          .optional()
-          .describe("Optional preferred manager (e.g. pnpm, npm, pip, uv, go, apt-get)."),
-        global: z
-          .boolean()
-          .default(false)
-          .describe("Whether to install globally when supported (mainly node ecosystem)."),
-        timeout_seconds: z
-          .number()
-          .int()
-          .min(1)
-          .max(1800)
-          .default(600)
-          .describe("Timeout per installer attempt in seconds."),
+        kind: z.enum(["auto", "node", "python", "go", "uv", "apt"]).default("auto"),
+        packages: z.array(z.string()).min(1),
+        prefer_manager: z.string().optional(),
+        global: z.boolean().default(false),
+        timeout_seconds: z.number().int().min(1).max(1800).default(600),
       }),
       execute: async ({ kind, packages, prefer_manager, global, timeout_seconds }) => {
         const cwd = resolveContextCwd(context);
@@ -856,362 +814,63 @@ export function createAgentTools(
     });
 
     tools.process = tool({
-      description:
-        "Manage code_execution background sessions (list, poll, log, kill, clear, remove). Use this after code_execution returns a managed session id.",
+      description: "Manage background sessions.",
       inputSchema: z.object({
-        action: z
-          .enum(["list", "poll", "log", "kill", "clear", "remove"])
-          .describe("Process management action."),
-        session_id: z
-          .string()
-          .optional()
-          .describe("Managed process session id for poll/log/kill/remove."),
-        timeout_ms: z
-          .number()
-          .int()
-          .min(0)
-          .max(120000)
-          .optional()
-          .describe("Optional wait timeout for poll action."),
-        offset: z
-          .number()
-          .int()
-          .min(0)
-          .optional()
-          .describe("Optional line offset for log action."),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(5000)
-          .optional()
-          .describe("Optional line count for log action."),
+        action: z.enum(["list", "poll", "log", "kill", "clear", "remove"]),
+        session_id: z.string().optional(),
+        timeout_ms: z.number().int().optional(),
+        offset: z.number().int().optional(),
+        limit: z.number().int().optional(),
       }),
       execute: async ({ action, session_id, timeout_ms, offset, limit }) => {
-        if (action === "list") {
-          return {
-            success: true,
-            sessions: listManagedProcessSessions(),
-          };
-        }
-        if (action === "poll") {
-          if (!session_id?.trim()) {
-            return { success: false, error: "session_id is required for poll." };
-          }
-          return pollManagedProcessSession(session_id, timeout_ms);
-        }
-        if (action === "log") {
-          if (!session_id?.trim()) {
-            return { success: false, error: "session_id is required for log." };
-          }
-          return readManagedProcessSessionLog(session_id, offset, limit);
-        }
-        if (action === "kill") {
-          if (!session_id?.trim()) {
-            return { success: false, error: "session_id is required for kill." };
-          }
-          if (!userExplicitlyRequestedProcessKill(context)) {
-            return {
-              success: false,
-              error:
-                "Kill blocked by policy: only stop a background process when the user explicitly asks to stop/cancel it. Continue with poll/log or wait for completion.",
-            };
-          }
-          return killManagedProcessSession(session_id);
-        }
-        if (action === "remove") {
-          if (!session_id?.trim()) {
-            return { success: false, error: "session_id is required for remove." };
-          }
-          return removeManagedProcessSession(session_id);
-        }
+        if (action === "list") return { success: true, sessions: listManagedProcessSessions() };
+        if (action === "poll") return pollManagedProcessSession(session_id!, timeout_ms);
+        if (action === "log") return readManagedProcessSessionLog(session_id!, offset, limit);
+        if (action === "kill") return killManagedProcessSession(session_id!);
+        if (action === "remove") return removeManagedProcessSession(session_id!);
         return clearFinishedManagedProcessSessions();
       },
     });
   }
 
   tools.read_text_file = tool({
-    description:
-      "Read a local UTF-8 text file (for example .txt, .md, .json, .csv, source code). Use this for file reading tasks instead of code_execution.",
+    description: "Read a local text file.",
     inputSchema: z.object({
-      file_path: z
-        .string()
-        .describe("Absolute path, or path relative to current project cwd."),
-      start_line: z
-        .number()
-        .int()
-        .min(1)
-        .default(1)
-        .describe("1-based line number to start reading from."),
-      max_lines: z
-        .number()
-        .int()
-        .min(1)
-        .max(2000)
-        .default(300)
-        .describe("Maximum number of lines to return."),
-      max_chars: z
-        .number()
-        .int()
-        .min(200)
-        .max(TEXT_FILE_READ_MAX_CHARS)
-        .default(12000)
-        .describe("Maximum number of characters to return."),
+      file_path: z.string(),
+      start_line: z.number().int().default(1),
+      max_lines: z.number().int().default(300),
+      max_chars: z.number().int().default(12000),
     }),
     execute: async ({ file_path, start_line, max_lines, max_chars }) => {
-      try {
-        const resolvedPath = await resolveReadableFilePath(context, file_path);
-        const stat = await fs.stat(resolvedPath);
-        if (!stat.isFile()) {
-          return {
-            success: false,
-            error: `Path is not a file: ${resolvedPath}`,
-          };
-        }
-
-        const raw = await fs.readFile(resolvedPath, "utf-8");
-        if (raw.includes("\u0000")) {
-          return {
-            success: false,
-            error: `File appears to be binary and is not suitable for read_text_file: ${resolvedPath}`,
-          };
-        }
-
-        const normalized = raw.replace(/\r\n/g, "\n");
-        const lines = normalized.split("\n");
-        const startIndex = Math.max(0, start_line - 1);
-        const endIndex = Math.min(lines.length, startIndex + max_lines);
-        const selected = lines.slice(startIndex, endIndex).join("\n");
-        const truncatedByChars = selected.length > max_chars;
-        const content = truncatedByChars
-          ? `${selected.slice(0, max_chars)}\n\n[Truncated by max_chars]`
-          : selected;
-        const language = inferLanguageFromPath(resolvedPath);
-
-        return {
-          success: true,
-          path: resolvedPath,
-          size: stat.size,
-          totalLines: lines.length,
-          startLine: startIndex + 1,
-          endLine: endIndex,
-          truncated: truncatedByChars || endIndex < lines.length,
-          language,
-          content,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to read text file.",
-        };
-      }
-    },
-  });
-
-  tools.read_pdf_file = tool({
-    description:
-      "Extract text from a local PDF file. Use this for reading PDF contents without Python.",
-    inputSchema: z.object({
-      file_path: z
-        .string()
-        .describe("Absolute path, or path relative to current project cwd."),
-      max_chars: z
-        .number()
-        .int()
-        .min(200)
-        .max(PDF_FILE_READ_MAX_CHARS)
-        .default(15000)
-        .describe("Maximum number of extracted text characters to return."),
-    }),
-    execute: async ({ file_path, max_chars }) => {
-      try {
-        const resolvedPath = await resolveReadableFilePath(context, file_path);
-        const stat = await fs.stat(resolvedPath);
-        if (!stat.isFile()) {
-          return {
-            success: false,
-            error: `Path is not a file: ${resolvedPath}`,
-          };
-        }
-
-        const parsed = await loadPdf(resolvedPath);
-        const text = (parsed.text ?? "").trim();
-        const truncated = text.length > max_chars;
-        const content = truncated
-          ? `${text.slice(0, max_chars)}\n\n[Truncated by max_chars]`
-          : text;
-
-        return {
-          success: true,
-          path: resolvedPath,
-          size: stat.size,
-          metadata: parsed.metadata,
-          extractedChars: text.length,
-          truncated,
-          content,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to read PDF file.",
-        };
-      }
+      const resolvedPath = await resolveReadableFilePath(context, file_path);
+      const raw = await fs.readFile(resolvedPath, "utf-8");
+      const lines = raw.split("\n");
+      const selected = lines.slice(start_line - 1, start_line - 1 + max_lines).join("\n");
+      return { success: true, content: selected.slice(0, max_chars) };
     },
   });
 
   tools.write_text_file = tool({
-    description:
-      "Create or update a local UTF-8 text file. Use this for writing .md/.txt/.json/code files instead of code_execution.",
+    description: "Write a local text file.",
     inputSchema: z.object({
-      file_path: z
-        .string()
-        .describe("Absolute path, or path relative to current project cwd."),
-      content: z
-        .string()
-        .describe("Full UTF-8 text content to write."),
-      overwrite: z
-        .boolean()
-        .default(true)
-        .describe("Whether to overwrite existing file if it already exists."),
+      file_path: z.string(),
+      content: z.string(),
+      overwrite: z.boolean().default(true),
     }),
     execute: async ({ file_path, content, overwrite }) => {
-      try {
-        if (content.length > TEXT_FILE_WRITE_MAX_CHARS) {
-          return {
-            success: false,
-            error: `Content too large (${content.length} chars). Max allowed is ${TEXT_FILE_WRITE_MAX_CHARS}.`,
-          };
-        }
-
-        const resolvedPath = resolveOutgoingFilePath(context, file_path);
-        let existed = false;
-        try {
-          const before = await fs.stat(resolvedPath);
-          if (!before.isFile()) {
-            return {
-              success: false,
-              error: `Target exists and is not a regular file: ${resolvedPath}`,
-            };
-          }
-          existed = true;
-        } catch (error) {
-          const code = (error as NodeJS.ErrnoException).code;
-          if (code !== "ENOENT") throw error;
-        }
-
-        if (existed && !overwrite) {
-          return {
-            success: false,
-            error: `File already exists and overwrite=false: ${resolvedPath}`,
-          };
-        }
-
-        await fs.mkdir(path.dirname(resolvedPath), { recursive: true });
-        await fs.writeFile(resolvedPath, content, "utf-8");
-        const after = await fs.stat(resolvedPath);
-
-        return {
-          success: true,
-          path: resolvedPath,
-          bytes: after.size,
-          created: !existed,
-          overwritten: existed,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to write text file.",
-        };
-      }
+      const resolvedPath = resolveOutgoingFilePath(context, file_path);
+      await fs.mkdir(path.dirname(resolvedPath), { recursive: true });
+      await fs.writeFile(resolvedPath, content, "utf-8");
+      return { success: true, path: resolvedPath };
     },
   });
 
-  tools.copy_file = tool({
-    description:
-      "Copy (duplicate) a local file from source_path to destination_path.",
-    inputSchema: z.object({
-      source_path: z
-        .string()
-        .describe("Source file path (absolute or relative to current project cwd)."),
-      destination_path: z
-        .string()
-        .describe("Destination file path (absolute or relative to current project cwd)."),
-      overwrite: z
-        .boolean()
-        .default(false)
-        .describe("Whether to overwrite destination if it already exists."),
-    }),
-    execute: async ({ source_path, destination_path, overwrite }) => {
-      try {
-        const sourceResolved = resolveOutgoingFilePath(context, source_path);
-        const destinationResolved = resolveOutgoingFilePath(context, destination_path);
-
-        if (sourceResolved === destinationResolved) {
-          return {
-            success: false,
-            error: "source_path and destination_path must be different.",
-          };
-        }
-
-        const sourceStat = await fs.stat(sourceResolved);
-        if (!sourceStat.isFile()) {
-          return {
-            success: false,
-            error: `Source is not a file: ${sourceResolved}`,
-          };
-        }
-
-        await fs.mkdir(path.dirname(destinationResolved), { recursive: true });
-        await fs.copyFile(
-          sourceResolved,
-          destinationResolved,
-          overwrite ? 0 : fsConstants.COPYFILE_EXCL
-        );
-        const destinationStat = await fs.stat(destinationResolved);
-
-        return {
-          success: true,
-          sourcePath: sourceResolved,
-          destinationPath: destinationResolved,
-          bytes: destinationStat.size,
-          overwritten: overwrite,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to copy file.",
-        };
-      }
-    },
-  });
-
-  // Memory tools
   if (settings.memory.enabled) {
     tools.memory_save = tool({
-      description:
-        "Save important information to persistent memory. Use this to remember facts, user preferences, successful solutions, or any information that should persist across conversations.",
+      description: "Save information to persistent memory.",
       inputSchema: z.object({
-        text: z
-          .string()
-          .describe("The information to save to memory"),
-        area: z
-          .enum(["main", "fragments", "solutions", "instruments"])
-          .default("main")
-          .describe(
-            "Memory area: 'main' for general facts, 'fragments' for conversation snippets, 'solutions' for successful solutions, 'instruments' for tool descriptions"
-          ),
+        text: z.string(),
+        area: z.enum(["main", "fragments", "solutions", "instruments"]).default("main"),
       }),
       execute: async ({ text, area }) => {
         return memorySave(text, area, context.memorySubdir, settings);
@@ -1219,16 +878,10 @@ export function createAgentTools(
     });
 
     tools.memory_load = tool({
-      description:
-        "Search persistent memory for relevant information. Use this to recall previously saved facts, solutions, or conversation context.",
+      description: "Search persistent memory.",
       inputSchema: z.object({
-        query: z
-          .string()
-          .describe("Search query to find relevant memories"),
-        limit: z
-          .number()
-          .default(5)
-          .describe("Maximum number of results to return"),
+        query: z.string(),
+        limit: z.number().default(5),
       }),
       execute: async ({ query, limit }) => {
         return memoryLoad(query, limit, context.memorySubdir, settings);
@@ -1236,611 +889,47 @@ export function createAgentTools(
     });
 
     tools.memory_delete = tool({
-      description:
-        "Delete specific entries from persistent memory.",
+      description: "Delete from persistent memory.",
       inputSchema: z.object({
-        query: z
-          .string()
-          .describe("Search query to find memories to delete"),
+        query: z.string(),
       }),
       execute: async ({ query }) => {
         return memoryDelete(query, context.memorySubdir, settings);
       },
     });
+
+    tools.memory_sync = tool({
+      description: "Sync local memory to Supabase. Call this to migrate local history to the cloud.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        return memorySync(context.memorySubdir, settings);
+      },
+    });
   }
 
-  // Knowledge query tool
   tools.knowledge_query = tool({
-    description:
-      "Search the knowledge base (uploaded documents) for relevant information using semantic search. Use this when you need information from the project's documents.",
+    description: "Search the knowledge base.",
     inputSchema: z.object({
-      query: z
-        .string()
-        .describe("The search query to find relevant documents"),
-      limit: z
-        .number()
-        .default(5)
-        .describe("Maximum number of document chunks to return"),
+      query: z.string(),
+      limit: z.number().default(5),
     }),
     execute: async ({ query, limit }) => {
       return knowledgeQuery(query, limit, context.knowledgeSubdirs, settings);
     },
   });
 
-  // Search engine tool
-  if (settings.search.enabled && settings.search.provider !== "none") {
-    tools.search_web = tool({
-      description:
-        "Search the internet for current information. Use this when you need up-to-date information, facts you're unsure about, or any web-based research.",
-      inputSchema: z.object({
-        query: z
-          .string()
-          .describe("The search query"),
-        limit: z
-          .number()
-          .default(5)
-          .describe("Maximum number of search results"),
-      }),
-      execute: async ({ query, limit }) => {
-        return searchWeb(query, limit, settings.search);
-      },
-    });
-  }
-
-  const telegramRuntime = getTelegramRuntimeData(context);
-  if (telegramRuntime) {
-    tools.telegram_send_file = tool({
-      description:
-        "Send a local file to the current Telegram chat as a document. Use this when the user asks to send/download a file in Telegram.",
-      inputSchema: z.object({
-        file_path: z
-          .string()
-          .describe("Absolute path to the file, or path relative to current project cwd."),
-        caption: z
-          .string()
-          .optional()
-          .describe("Optional caption to include with the file."),
-      }),
-      execute: async ({ file_path, caption }) => {
-        try {
-          const resolvedPath = resolveOutgoingFilePath(context, file_path);
-          const stat = await fs.stat(resolvedPath);
-          if (!stat.isFile()) {
-            return {
-              success: false,
-              error: `Path is not a file: ${resolvedPath}`,
-            };
-          }
-          if (stat.size > TELEGRAM_SEND_FILE_MAX_BYTES) {
-            return {
-              success: false,
-              error: `File is too large (${stat.size} bytes). Max allowed is ${TELEGRAM_SEND_FILE_MAX_BYTES} bytes.`,
-            };
-          }
-
-          const fileBuffer = await fs.readFile(resolvedPath);
-          const form = new FormData();
-          form.append("chat_id", String(telegramRuntime.chatId));
-          form.append(
-            "document",
-            new Blob([fileBuffer]),
-            path.basename(resolvedPath)
-          );
-          const trimmedCaption = caption?.trim();
-          if (trimmedCaption) {
-            form.append("caption", trimmedCaption);
-          }
-
-          const response = await fetch(
-            `https://api.telegram.org/bot${telegramRuntime.botToken}/sendDocument`,
-            {
-              method: "POST",
-              body: form,
-            }
-          );
-          const payload = (await response.json().catch(() => null)) as
-            | {
-                ok?: boolean;
-                description?: string;
-                result?: {
-                  document?: {
-                    file_id?: string;
-                    file_name?: string;
-                    file_size?: number;
-                  };
-                };
-              }
-            | null;
-
-          if (!response.ok || !payload?.ok) {
-            return {
-              success: false,
-              error: `Telegram sendDocument failed (${response.status})${payload?.description ? `: ${payload.description}` : ""}`,
-            };
-          }
-
-          return {
-            success: true,
-            message: "File sent to Telegram successfully.",
-            path: resolvedPath,
-            name: payload.result?.document?.file_name || path.basename(resolvedPath),
-            size: payload.result?.document?.file_size ?? stat.size,
-            telegramFileId: payload.result?.document?.file_id ?? null,
-          };
-        } catch (error) {
-          return {
-            success: false,
-            error:
-              error instanceof Error
-                ? error.message
-                : "Failed to send file to Telegram.",
-          };
-        }
-      },
-    });
-  }
-
-  tools.cron = createCronTool(context);
-
-  // Load skill tool — load full instructions when model activates a project skill (Agent Skills integrate-skills)
-  if (context.projectId) {
-    tools.load_skill = tool({
-      description:
-        "Load the full instructions for a project skill. Call this when the user's task matches one of the available skills (see <available_skills> in context). Use the skill name exactly as listed. This returns SKILL.md plus a manifest of additional skill resource files; load specific files with load_skill_resource when needed.",
-      inputSchema: z.object({
-        skill_name: z
-          .string()
-          .describe(
-            "Exact name of the skill to load (from <available_skills>, e.g. pdf-processing)"
-          ),
-      }),
-      execute: async ({ skill_name }) => {
-        const skill = await loadSkillInstructions(
-          context.projectId!,
-          skill_name.trim()
-        );
-        if (!skill) {
-          const meta = await loadProjectSkillsMetadata(context.projectId!);
-          const names = meta.map((s) => s.name).join(", ");
-          return `Skill "${skill_name}" not found. Available skills: ${names || "none"}.`;
-        }
-        const resourcePaths = await listSkillResourcePaths(
-          skill.skillDir,
-          skill.body
-        );
-        const requiredResourceReport = await loadRequiredSkillResources(
-          skill.skillDir,
-          skill.body
-        );
-        const requiredResources = requiredResourceReport.loaded;
-        const parts = [
-          `# Skill: ${skill.name}\n${skill.description}\n\n## Instructions\n\n${skill.body}`,
-        ];
-        parts.push(
-          "## Required Resource Link Scan\n" +
-          `Detected local links in SKILL.md: ${requiredResourceReport.detectedLinks.length}\n` +
-          `Auto-loaded: ${requiredResources.length}\n` +
-          `Skipped: ${requiredResourceReport.skipped.length}`
-        );
-        if (requiredResourceReport.detectedLinks.length > 0) {
-          parts.push(
-            "### Detected Links\n" +
-            requiredResourceReport.detectedLinks.map((p) => `- \`${p}\``).join("\n")
-          );
-        }
-        if (requiredResources.length > 0) {
-          parts.push(
-            "## Auto-loaded Required Skill Resources\n" +
-            "These files are auto-loaded because SKILL.md contains local markdown links (`[...](...)`). Linked files are treated as required context before execution."
-          );
-          for (const resource of requiredResources) {
-            parts.push(
-              [
-                `### ${resource.relativePath}`,
-                `\`\`\`${resource.language}`,
-                resource.content,
-                "```",
-                resource.truncated ? "[Truncated: file too large]" : "",
-              ]
-                .filter(Boolean)
-                .join("\n")
-            );
-          }
-        }
-        if (requiredResourceReport.skipped.length > 0) {
-          parts.push(
-            "### Skipped Required Links\n" +
-            requiredResourceReport.skipped
-              .map(
-                (item) =>
-                  `- \`${item.relativePath}\` — ${formatRequiredResourceSkipReason(item.reason)}`
-              )
-              .join("\n")
-          );
-        }
-        if (resourcePaths.length > 0) {
-          parts.push(
-            "## Available Skill Resources\n" +
-            "Required resources may already be auto-loaded above. Use `load_skill_resource` for any additional file needed by the workflow.\n\n" +
-            resourcePaths.map((p) => `- \`${p}\``).join("\n")
-          );
-        } else {
-          parts.push(
-            "## Available Skill Resources\nNo additional resource files were detected for this skill."
-          );
-        }
-        if (skill.compatibility) {
-          parts.push(`**Compatibility:** ${skill.compatibility}`);
-        }
-        parts.push(
-          `\nSkill directory: \`${skill.skillDir}\` (may contain references/, scripts/, assets/).`
-        );
-        return parts.join("\n");
-      },
-    });
-
-    tools.load_skill_resource = tool({
-      description:
-        "Load a single additional file from a project skill (for example from references/, scripts/, assets/, or another path listed by load_skill). Use this only after loading the skill and only for files relevant to the current task.",
-      inputSchema: z.object({
-        skill_name: z
-          .string()
-          .describe("Exact skill name (same value used for load_skill)."),
-        relative_path: z
-          .string()
-          .describe(
-            "Relative path inside the skill directory, e.g. references/examples.md or scripts/generate.py"
-          ),
-      }),
-      execute: async ({ skill_name, relative_path }) => {
-        const skill = await loadSkillInstructions(
-          context.projectId!,
-          skill_name.trim()
-        );
-        if (!skill) {
-          const meta = await loadProjectSkillsMetadata(context.projectId!);
-          const names = meta.map((s) => s.name).join(", ");
-          return `Skill "${skill_name}" not found. Available skills: ${names || "none"}.`;
-        }
-
-        const fullPath = await resolveSkillLocalFile(
-          skill.skillDir,
-          relative_path.trim()
-        );
-        if (!fullPath) {
-          return `Resource "${relative_path}" was not found in skill "${skill.name}" or path is invalid.`;
-        }
-
-        let raw: string;
-        try {
-          raw = await fs.readFile(fullPath, "utf-8");
-        } catch {
-          return `Failed to read resource "${relative_path}" for skill "${skill.name}".`;
-        }
-
-        const truncated = raw.length > SKILL_RESOURCE_READ_MAX_CHARS;
-        const content = truncated
-          ? `${raw.slice(0, SKILL_RESOURCE_READ_MAX_CHARS)}\n\n[Truncated: file too large]`
-          : raw;
-        const relative = path.relative(skill.skillDir, fullPath).replaceAll("\\", "/");
-        const language = inferLanguageFromPath(fullPath);
-
-        return [
-          `# Skill Resource: ${skill.name}/${relative}`,
-          "",
-          `\`\`\`${language}`,
-          content,
-          "```",
-        ].join("\n");
-      },
-    });
-
-    tools.install_skill_from_github = tool({
-      description:
-        "Install an existing skill from a GitHub URL into the current project. Use this when the user provides a github.com link and asks to install/import a skill. This copies files recursively from the linked path and preserves folder structure.",
-      inputSchema: z.object({
-        url: z
-          .string()
-          .describe(
-            "GitHub URL to a skill directory or file, for example https://github.com/owner/repo/tree/main/skills/my-skill"
-          ),
-        skill_name: z
-          .string()
-          .optional()
-          .describe(
-            "Optional override for installed skill name (lowercase letters, numbers, hyphens)."
-          ),
-      }),
-      execute: async ({ url, skill_name }) => {
-        const result = await installSkillFromGitHub(context.projectId!, {
-          url,
-          skill_name,
-        });
-        if (!result.success) {
-          return `Failed to install skill from GitHub: ${result.error}`;
-        }
-        return `Skill "${result.skillName}" installed successfully at ${result.skillDir} from ${url} (ref: ${result.sourceRef}${result.sourcePath ? `, path: ${result.sourcePath}` : ""}, files: ${result.filesCopied}).`;
-      },
-    });
-
-    tools.create_skill = tool({
-      description:
-        "Create a new skill in the current project. Use when the user asks to create, add, or write a skill. The skill will be saved in .meta/skills/<skill_name>/SKILL.md following the Agent Skills specification. Skill name must be lowercase with hyphens (e.g. pdf-processing, code-review).",
-      inputSchema: z.object({
-        skill_name: z
-          .string()
-          .describe(
-            "Name of the skill: only lowercase letters, numbers, and hyphens; 1-64 chars; e.g. pdf-processing, api-conventions"
-          ),
-        description: z
-          .string()
-          .describe(
-            "What the skill does and when to use it (1-1024 chars). Include keywords that help match user tasks."
-          ),
-        body: z
-          .string()
-          .describe(
-            "Markdown instructions: steps, examples, edge cases. This is the content the agent will follow when the skill is activated."
-          ),
-        compatibility: z
-          .string()
-          .optional()
-          .describe(
-            "Optional. Environment requirements (e.g. 'Requires Python 3.10+', 'Designed for Node.js projects'). Max 500 chars."
-          ),
-        license: z
-          .string()
-          .optional()
-          .describe("Optional. License name or reference (e.g. MIT, Apache-2.0)."),
-      }),
-      execute: async ({ skill_name, description, body, compatibility, license }) => {
-        const result = await createSkill(context.projectId!, {
-          skill_name,
-          description,
-          body: body ?? "",
-          compatibility,
-          license,
-        });
-        if (result.success) {
-          return `Skill "${result.skillDir.split(/[/\\]/).pop()}" created successfully at ${result.skillDir}/SKILL.md. It will appear in <available_skills> for this project.`;
-        }
-        return `Failed to create skill: ${result.error}`;
-      },
-    });
-
-    tools.update_skill = tool({
-      description:
-        "Update an existing project's skill SKILL.md (frontmatter and/or body). Use this when the user asks to edit or revise an existing skill.",
-      inputSchema: z.object({
-        skill_name: z
-          .string()
-          .describe("Exact name of the existing skill to update."),
-        description: z
-          .string()
-          .optional()
-          .describe(
-            "Optional new skill description (what the skill does and when to use it)."
-          ),
-        body: z
-          .string()
-          .optional()
-          .describe("Optional new markdown body/instructions for SKILL.md."),
-        compatibility: z
-          .string()
-          .nullable()
-          .optional()
-          .describe(
-            "Optional compatibility value. Use null to remove compatibility from frontmatter."
-          ),
-        license: z
-          .string()
-          .nullable()
-          .optional()
-          .describe("Optional license value. Use null to remove license from frontmatter."),
-      }),
-      execute: async ({ skill_name, description, body, compatibility, license }) => {
-        const payload: {
-          skill_name: string;
-          description?: string;
-          body?: string;
-          compatibility?: string | null;
-          license?: string | null;
-        } = { skill_name: skill_name.trim() };
-        if (description !== undefined) payload.description = description;
-        if (body !== undefined) payload.body = body;
-        if (compatibility !== undefined) payload.compatibility = compatibility;
-        if (license !== undefined) payload.license = license;
-
-        const result = await updateSkill(context.projectId!, payload);
-        if (result.success) {
-          return `Skill "${skill_name.trim()}" updated successfully at ${result.skillFilePath}.`;
-        }
-        return `Failed to update skill: ${result.error}`;
-      },
-    });
-
-    tools.delete_skill = tool({
-      description:
-        "Delete an existing skill directory from the current project. This permanently removes SKILL.md and all optional resources in that skill.",
-      inputSchema: z.object({
-        skill_name: z.string().describe("Exact skill name to delete."),
-        confirm: z
-          .boolean()
-          .default(false)
-          .describe("Safety confirmation. Must be true to perform deletion."),
-      }),
-      execute: async ({ skill_name, confirm }) => {
-        if (!confirm) {
-          return 'Deletion not executed. Set confirm=true to delete the skill directory permanently.';
-        }
-        const result = await deleteSkill(context.projectId!, skill_name.trim());
-        if (result.success) {
-          return `Skill "${skill_name.trim()}" deleted successfully from ${result.skillDir}.`;
-        }
-        return `Failed to delete skill: ${result.error}`;
-      },
-    });
-
-    tools.write_skill_file = tool({
-      description:
-        "Add an optional file to a project skill: scripts (e.g. scripts/extract.py), references (e.g. references/REFERENCE.md), or assets. Use when the user asks to add a script, reference doc, or asset to a skill. Only SKILL.md is required; everything else is optional and added with this tool when needed.",
-      inputSchema: z.object({
-        skill_name: z
-          .string()
-          .describe("Exact name of the skill (from <available_skills> or one you just created)"),
-        relative_path: z
-          .string()
-          .describe(
-            "Path relative to the skill directory, e.g. scripts/extract.py, references/REFERENCE.md, assets/template.json"
-          ),
-        content: z.string().describe("Full file content (code, markdown, or text)"),
-      }),
-      execute: async ({ skill_name, relative_path, content }) => {
-        const result = await writeSkillFile(
-          context.projectId!,
-          skill_name.trim(),
-          relative_path.trim(),
-          content ?? ""
-        );
-        if (result.success) {
-          const short = result.filePath.replace(/^.*[/\\](?:skills|instructions)[/\\]/, "");
-          return `File written: ${short}`;
-        }
-        return `Failed: ${result.error}`;
-      },
-    });
-
-    tools.upsert_mcp_server = tool({
-      description:
-        "Create or update one MCP server entry in this project's .meta/mcp/servers.json. Use this when the user asks to add/edit MCP server settings.",
-      inputSchema: z
-        .object({
-          id: z
-            .string()
-            .describe("MCP server id (for example firecrawl-mcp or my-http-server)."),
-          transport: z
-            .enum(["stdio", "http"])
-            .describe("Transport type: stdio or http."),
-          command: z
-            .string()
-            .nullable()
-            .optional()
-            .describe("Required for stdio transport: executable command."),
-          args: z
-            .array(z.string())
-            .nullable()
-            .optional()
-            .describe("Optional command arguments for stdio transport."),
-          env: z
-            .record(z.string(), z.string())
-            .nullable()
-            .optional()
-            .describe("Optional environment variables for stdio transport."),
-          cwd: z
-            .string()
-            .nullable()
-            .optional()
-            .describe("Optional working directory for stdio transport."),
-          url: z
-            .string()
-            .nullable()
-            .optional()
-            .describe("Required for http transport: MCP endpoint URL."),
-          headers: z
-            .record(z.string(), z.string())
-            .nullable()
-            .optional()
-            .describe("Optional HTTP headers for http transport."),
-        })
-        .superRefine((value, ctx) => {
-          if (value.transport === "stdio" && !(value.command ?? "").trim()) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "command is required when transport is stdio.",
-              path: ["command"],
-            });
-          }
-          if (value.transport === "http" && !(value.url ?? "").trim()) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "url is required when transport is http.",
-              path: ["url"],
-            });
-          }
-        }),
-      execute: async (payload) => {
-        const server: McpServerConfig =
-          payload.transport === "http"
-            ? {
-                id: payload.id,
-                transport: "http",
-                url: payload.url ?? "",
-                headers: payload.headers ?? undefined,
-              }
-            : {
-                id: payload.id,
-                transport: "stdio",
-                command: payload.command ?? "",
-                args: payload.args ?? undefined,
-                env: payload.env ?? undefined,
-                cwd: payload.cwd ?? undefined,
-              };
-        const result = await upsertProjectMcpServer(
-          context.projectId!,
-          server
-        );
-        if (result.success) {
-          return `MCP server "${payload.id}" ${result.action} in ${result.filePath}.`;
-        }
-        return `Failed to upsert MCP server: ${result.error}`;
-      },
-    });
-
-    tools.delete_mcp_server = tool({
-      description:
-        "Delete one MCP server entry from this project's .meta/mcp/servers.json.",
-      inputSchema: z.object({
-        server_id: z.string().describe("Exact MCP server id to delete."),
-      }),
-      execute: async ({ server_id }) => {
-        const result = await deleteProjectMcpServer(context.projectId!, server_id);
-        if (result.success) {
-          return `MCP server "${server_id}" deleted from ${result.filePath}.`;
-        }
-        return `Failed to delete MCP server: ${result.error}`;
-      },
-    });
-  }
-
-  // Call subordinate
-    // Call subordinate tool (only for agents below max depth)
     if ((context.agentNumber ?? 0) < 3) {
           tools.call_subordinate = tool({
-                  description:
-                            "Delegate a complex subtask to a subordinate agent. The subordinate has access to all tools and will complete the task independently. Use this for complex multi-step tasks that would benefit from focused attention.",
+                  description: "Delegate a subtask.",
                   inputSchema: z.object({
-                            task: z
-                              .string()
-                              .describe(
-                                            "Detailed description of the task to delegate. Include all necessary context."
-                                          ),
-                            role: z
-                              .enum(["orchestrator", "coder", "reviewer", "researcher", "browser"])
-                              .optional()
-                              .describe(
-                                            "Optional role to assign to the subordinate agent to set its behavior appropriately."
-                                          ),
+                            task: z.string(),
+                            role: z.enum(["orchestrator", "coder", "reviewer", "researcher", "browser"]).optional(),
                   }),
                   execute: async ({ task, role }) => {
-                            return callSubordinate(
-                                        task,
-                                        context.projectId,
-                                        context.agentNumber,
-                                        context.history,
-                                        role as any
-                                      );
+                            return callSubordinate(task, context.projectId, context.agentNumber, context.history, role as any);
                   },
           });
     }
+
   return tools;
 }
