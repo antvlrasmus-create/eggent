@@ -1,4 +1,5 @@
 import { insertMemory, searchMemory, deleteMemoryByQuery } from "@/lib/memory/memory";
+import { syncLocalToSupabase } from "@/lib/memory/sync";
 import type { AppSettings } from "@/lib/types";
 
 /**
@@ -69,5 +70,23 @@ export async function memoryDelete(
     return `Deleted ${count} matching memory entries.`;
   } catch (error) {
     return `Failed to delete memories: ${error instanceof Error ? error.message : String(error)}`;
+  }
+}
+
+/**
+ * Sync local memory to Supabase
+ */
+export async function memorySync(
+  memorySubdir: string,
+  settings: AppSettings
+): Promise<string> {
+  try {
+    const result = await syncLocalToSupabase(memorySubdir, settings);
+    if (!result.success) {
+      return `Migration failed: ${result.error}`;
+    }
+    return `Migration successful: moved ${result.migrated}/${result.total} entries to Supabase.`;
+  } catch (error) {
+    return `Failed to sync memory: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
