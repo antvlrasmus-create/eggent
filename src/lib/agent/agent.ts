@@ -458,8 +458,8 @@ function convertModelMessageToChatMessages(msg: ModelMessage, now: string): Chat
       const outputContainer = tr.output ?? tr.result;
       const outputValue =
         typeof outputContainer === "object" &&
-        outputContainer !== null &&
-        "value" in outputContainer
+          outputContainer !== null &&
+          "value" in outputContainer
           ? (outputContainer as { value: unknown }).value
           : outputContainer;
 
@@ -711,8 +711,18 @@ export async function runAgent(options: {
   agentNumber?: number;
 }) {
   const settings = await getSettings();
-  const providerOptions = resolveModelProviderOptions(settings.chatModel.provider);
-  const model = createModel(settings.chatModel, {
+
+  // Multi-agent injection
+  let effectiveModelConfig = settings.chatModel;
+  let effectiveRole: AgentRole = options.agentNumber && options.agentNumber > 0 ? 'researcher' : 'orchestrator';
+
+  if (options.agentNumber && options.agentNumber > 0) {
+    const { AgentRegistry } = await import("@/lib/agent/registry");
+    effectiveModelConfig = AgentRegistry[effectiveRole] || settings.chatModel;
+  }
+
+  const providerOptions = resolveModelProviderOptions(effectiveModelConfig.provider);
+  const model = createModel(effectiveModelConfig, {
     projectId: options.projectId,
     currentPath: options.currentPath,
   });
@@ -765,6 +775,7 @@ export async function runAgent(options: {
     chatId: options.chatId,
     agentNumber: options.agentNumber,
     tools: toolNames,
+    role: effectiveRole,
   });
 
   // Append user message to history
@@ -774,12 +785,12 @@ export async function runAgent(options: {
   ];
 
   logLLMRequest({
-    model: `${settings.chatModel.provider}/${settings.chatModel.model}`,
+    model: `${effectiveModelConfig.provider}/${effectiveModelConfig.model}`,
     system: systemPrompt,
     messages,
     toolNames,
-    temperature: settings.chatModel.temperature,
-    maxTokens: settings.chatModel.maxTokens,
+    temperature: effectiveModelConfig.temperature,
+    maxTokens: effectiveModelConfig.maxTokens,
     label: "LLM Request (stream)",
   });
 
@@ -791,8 +802,8 @@ export async function runAgent(options: {
     providerOptions,
     tools,
     stopWhen: [stepCountIs(MAX_TOOL_STEPS_PER_TURN), hasToolCall("response")],
-    temperature: settings.chatModel.temperature ?? 0.7,
-    maxOutputTokens: settings.chatModel.maxTokens ?? 4096,
+    temperature: effectiveModelConfig.temperature ?? 0.7,
+    maxOutputTokens: effectiveModelConfig.maxTokens ?? 4096,
     onFinish: async (event) => {
       const finishReason =
         typeof (event as unknown as { finishReason?: unknown }).finishReason === "string"
@@ -819,8 +830,8 @@ export async function runAgent(options: {
               },
             ],
             providerOptions,
-            temperature: settings.chatModel.temperature ?? 0.7,
-            maxOutputTokens: Math.min(settings.chatModel.maxTokens ?? 4096, 1200),
+            temperature: effectiveModelConfig.temperature ?? 0.7,
+            maxOutputTokens: Math.min(effectiveModelConfig.maxTokens ?? 4096, 1200),
           });
           continuationText = (continuation.text || "").trim();
         } catch (error) {
@@ -905,8 +916,19 @@ export async function runAgentText(options: {
   runtimeData?: Record<string, unknown>;
 }): Promise<string> {
   const settings = await getSettings();
-  const providerOptions = resolveModelProviderOptions(settings.chatModel.provider);
-  const model = createModel(settings.chatModel, {
+
+  // Multi-agent injection: use role-specific config if role is provided
+  let effectiveModelConfig = settings.chatModel;
+  let effectiveRole = options.agentNumber && options.agentNumber > 0 ? ('researcher' as AgentRole) : ('orchestrator' as AgentRole); // defaults
+
+  if (options.agentNumber && options.agentNumber > 0) {
+    // For now, assume subordinates are researchers unless specified
+    const reg = (await import("@/lib/agent/registry")).AgentRegistry;
+    effectiveModelConfig = reg[effectiveRole] || settings.chatModel;
+  }
+
+  const providerOptions = resolveModelProviderOptions(effectiveModelConfig.provider);
+  const model = createModel(effectiveModelConfig, {
     projectId: options.projectId,
     currentPath: options.currentPath,
   });
@@ -951,6 +973,7 @@ export async function runAgentText(options: {
     chatId: options.chatId,
     agentNumber: options.agentNumber,
     tools: toolNames,
+    role: effectiveRole,
   });
 
   const messages: ModelMessage[] = [
@@ -959,12 +982,12 @@ export async function runAgentText(options: {
   ];
 
   logLLMRequest({
-    model: `${settings.chatModel.provider}/${settings.chatModel.model}`,
+    model: `${effectiveModelConfig.provider}/${effectiveModelConfig.model}`,
     system: systemPrompt,
     messages,
     toolNames,
-    temperature: settings.chatModel.temperature,
-    maxTokens: settings.chatModel.maxTokens,
+    temperature: effectiveModelConfig.temperature,
+    maxTokens: effectiveModelConfig.maxTokens,
     label: "LLM Request (non-stream)",
   });
 
@@ -976,8 +999,8 @@ export async function runAgentText(options: {
       providerOptions,
       tools,
       stopWhen: [stepCountIs(MAX_TOOL_STEPS_PER_TURN), hasToolCall("response")],
-      temperature: settings.chatModel.temperature ?? 0.7,
-      maxOutputTokens: settings.chatModel.maxTokens ?? 4096,
+      temperature: effectiveModelConfig.temperature ?? 0.7,
+      maxOutputTokens: effectiveModelConfig.maxTokens ?? 4096,
     });
 
     const responseMessages = (
@@ -1048,11 +1071,17 @@ export async function runSubordinateAgent(options: {
   projectId?: string;
   parentAgentNumber: number;
   parentHistory: ModelMessage[];
-      role?: AgentRole;
+  role?: AgentRole;
 }): Promise<string> {
   const settings = await getSettings();
-  const providerOptions = resolveModelProviderOptions(settings.chatModel.provider);
-  const model = createModel(settings.chatModel, {
+
+  // Use Registry for subordinate role
+  const role = options.role || 'researcher';
+  const { AgentRegistry } = await import("@/lib/agent/registry");
+  const modelConfig = AgentRegistry[role] || settings.chatModel;
+
+  const providerOptions = resolveModelProviderOptions(modelConfig.provider);
+  const model = createModel(modelConfig, {
     projectId: options.projectId,
   });
 
@@ -1086,7 +1115,7 @@ export async function runSubordinateAgent(options: {
     projectId: options.projectId,
     agentNumber: context.agentNumber,
     tools: toolNames,
-          role: options.role,
+    role: options.role,
   });
 
   // Include relevant parent history for context
@@ -1101,12 +1130,12 @@ export async function runSubordinateAgent(options: {
   ];
 
   logLLMRequest({
-    model: `${settings.chatModel.provider}/${settings.chatModel.model}`,
+    model: `${modelConfig.provider}/${modelConfig.model}`,
     system: systemPrompt,
     messages,
     toolNames,
-    temperature: settings.chatModel.temperature,
-    maxTokens: settings.chatModel.maxTokens,
+    temperature: modelConfig.temperature,
+    maxTokens: modelConfig.maxTokens,
     label: "LLM Request (subordinate)",
   });
 
@@ -1118,8 +1147,8 @@ export async function runSubordinateAgent(options: {
       providerOptions,
       tools,
       stopWhen: [stepCountIs(MAX_TOOL_STEPS_SUBORDINATE), hasToolCall("response")],
-      temperature: settings.chatModel.temperature ?? 0.7,
-      maxOutputTokens: settings.chatModel.maxTokens ?? 4096,
+      temperature: modelConfig.temperature ?? 0.7,
+      maxOutputTokens: modelConfig.maxTokens ?? 4096,
     });
     return text;
   } finally {

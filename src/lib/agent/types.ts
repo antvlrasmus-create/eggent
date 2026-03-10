@@ -1,5 +1,24 @@
 import type { ModelMessage } from "ai";
 
+export type AgentRole = 'orchestrator' | 'coder' | 'reviewer' | 'researcher';
+
+// Minimal definition for ModelConfig based on how it's used
+export interface ModelConfig {
+  provider: string;
+  model: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+export interface AgentConfig {
+  role: AgentRole;
+  model: ModelConfig;
+  systemPrompt: string;
+  tools: string[];
+  maxSteps: number;
+  temperature: number;
+}
+
 export interface AgentContext {
   chatId: string;
   projectId?: string;
