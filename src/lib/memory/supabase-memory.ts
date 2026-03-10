@@ -5,7 +5,7 @@ import type { AppSettings } from "@/lib/types";
 const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || "";
 
-const supabase = (supabaseUrl && supabaseServiceKey) 
+const supabase = (supabaseUrl && supabaseServiceKey)
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
 
@@ -34,7 +34,7 @@ export async function insertMemory(
   }
 
   const { data, error } = await supabase
-    .from("memories")
+    .from("eggent_memory")
     .insert({
       text,
       embedding: embeddings[0],
@@ -100,7 +100,7 @@ export async function deleteMemoryByQuery(
 
   const idsToDelete = matches.map((m) => m.id);
   const { error, count } = await supabase
-    .from("memories")
+    .from("eggent_memory")
     .delete({ count: "exact" })
     .in("id", idsToDelete)
     .eq("subdir", subdir);
@@ -119,7 +119,7 @@ export async function deleteMemoryById(
   if (!supabase) return false;
 
   const { error, count } = await supabase
-    .from("memories")
+    .from("eggent_memory")
     .delete({ count: "exact" })
     .eq("id", id)
     .eq("subdir", subdir);
@@ -139,7 +139,7 @@ export async function deleteMemoryByMetadata(
   if (!supabase) return 0;
 
   const { error, count } = await supabase
-    .from("memories")
+    .from("eggent_memory")
     .delete({ count: "exact" })
     .eq(`metadata->>${key}`, value)
     .eq("subdir", subdir);
@@ -157,7 +157,7 @@ export async function getAllMemories(
   if (!supabase) return [];
 
   const { data, error } = await supabase
-    .from("memories")
+    .from("eggent_memory")
     .select("id, text, metadata")
     .eq("subdir", subdir)
     .order("created_at", { ascending: false });
@@ -178,13 +178,13 @@ export async function getChunkCountsByFilename(
   if (!supabase) return {};
 
   const { data, error } = await supabase
-    .from("memories")
+    .from("eggent_memory")
     .select("metadata->filename")
     .eq("subdir", subdir)
     .eq("metadata->>area", KNOWLEDGE_AREA);
 
   if (error) throw error;
-  
+
   const counts: Record<string, number> = {};
   for (const row of (data || [])) {
     const name = row.filename;
@@ -205,7 +205,7 @@ export async function getChunksByFilename(
   if (!supabase) return [];
 
   const { data, error } = await supabase
-    .from("memories")
+    .from("eggent_memory")
     .select("id, text")
     .eq("subdir", subdir)
     .eq("metadata->>area", KNOWLEDGE_AREA)
@@ -213,7 +213,7 @@ export async function getChunksByFilename(
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  
+
   return (data || []).map((d, i) => ({
     id: d.id,
     text: d.text,

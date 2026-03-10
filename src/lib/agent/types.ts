@@ -1,6 +1,6 @@
 import type { ModelMessage } from "ai";
+import type { AgentRole } from "@/lib/types";
 
-export type AgentRole = 'orchestrator' | 'coder' | 'reviewer' | 'researcher';
 
 // Minimal definition for ModelConfig based on how it's used
 export interface ModelConfig {
@@ -48,4 +48,24 @@ export interface StreamCallbacks {
   onToolCall?: (toolName: string, args: Record<string, unknown>) => void;
   onToolResult?: (toolName: string, result: string) => void;
   onFinish?: (result: AgentLoopResult) => void;
+}
+
+// --- Orchestration ---
+
+export interface SubTask {
+  id: string;
+  title: string;
+  description: string;
+  role: AgentRole;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  dependencies: string[]; // IDs of other tasks
+  result?: string;
+  error?: string;
+}
+
+export interface TaskPlan {
+  id: string;
+  goal: string;
+  tasks: SubTask[];
+  status: 'planning' | 'executing' | 'completed' | 'failed';
 }

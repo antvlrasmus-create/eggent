@@ -1,5 +1,6 @@
 import { insertMemory, searchMemory, deleteMemoryByQuery } from "@/lib/memory/memory";
 import { syncLocalToSupabase } from "@/lib/memory/sync";
+import { syncManager } from "@/lib/memory/sync-manager";
 import type { AppSettings } from "@/lib/types";
 
 /**
@@ -13,6 +14,16 @@ export async function memorySave(
 ): Promise<string> {
   try {
     const id = await insertMemory(text, area, memorySubdir, settings);
+
+    // Background sync to GitHub
+    try {
+      syncManager.pushMemoryGitHub(`Auto-sync memory: new entry in ${area}`).catch(e => {
+        console.error("Failed background GitHub sync on memorySave:", e);
+      });
+    } catch (e) {
+      // ignore init errors
+    }
+
     return `Memory saved successfully (ID: ${id}, area: ${area})`;
   } catch (error) {
     return `Failed to save memory: ${error instanceof Error ? error.message : String(error)}`;

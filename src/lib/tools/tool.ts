@@ -19,6 +19,7 @@ import { memorySave, memoryLoad, memoryDelete, memorySync } from "@/lib/tools/me
 import { knowledgeQuery } from "@/lib/tools/knowledge-query";
 import { searchWeb } from "@/lib/tools/search-engine";
 import { callSubordinate } from "@/lib/tools/call-subordinate";
+import { orchestrationService } from "@/lib/agent/orchestration-service";
 import { createCronTool } from "@/lib/tools/cron-tool";
 import { installPackages } from "@/lib/tools/install-orchestrator";
 import { loadPdf } from "@/lib/memory/loaders/pdf-loader";
@@ -36,6 +37,7 @@ import {
   writeSkillFile,
   upsertProjectMcpServer,
   deleteProjectMcpServer,
+  deleteProject,
 } from "@/lib/storage/project-store";
 
 const SKILL_RESOURCE_LIST_LIMIT = 60;
@@ -747,6 +749,56 @@ export function createAgentTools(
     },
   });
 
+  tools.delete_project = tool({
+    description:
+      "Delete a project workspace and all its data (memory, chats, skills). Use this when the user asks to delete or remove a project.",
+    inputSchema: z.object({
+      project_id: z.string().describe("The exact ID of the project to delete"),
+    }),
+    execute: async ({ project_id }) => {
+      const trimmedId = project_id.trim();
+      if (!trimmedId) {
+        return {
+          success: false,
+          action: "delete_project",
+          error: "Project ID is required.",
+        };
+      }
+
+      if (trimmedId === "none") {
+        return {
+          success: false,
+          action: "delete_project",
+          error: "Cannot delete the global project context.",
+        };
+      }
+
+      const project = await getProject(trimmedId);
+      if (!project) {
+        return {
+          success: false,
+          action: "delete_project",
+          error: `Project with id "${trimmedId}" not found.`,
+        };
+      }
+
+      const success = await deleteProject(trimmedId);
+      if (success) {
+        return {
+          success: true,
+          action: "delete_project",
+          message: `Project "${project.name}" (${trimmedId}) has been successfully deleted.`,
+        };
+      } else {
+        return {
+          success: false,
+          action: "delete_project",
+          error: `Failed to delete project "${project.name}" (${trimmedId}).`,
+        };
+      }
+    },
+  });
+
   if (settings.codeExecution.enabled) {
     tools.code_execution = tool({
       description:
@@ -918,18 +970,70 @@ export function createAgentTools(
     },
   });
 
-    if ((context.agentNumber ?? 0) < 3) {
-          tools.call_subordinate = tool({
-                  description: "Delegate a subtask.",
-                  inputSchema: z.object({
-                            task: z.string(),
-                            role: z.enum(["orchestrator", "coder", "reviewer", "researcher", "browser"]).optional(),
-                  }),
-                  execute: async ({ task, role }) => {
-                            return callSubordinate(task, context.projectId, context.agentNumber, context.history, role as any);
-                  },
-          });
+  if ((context.agentNumber ?? 0) < 3) {
+    tools.call_subordinate = tool({
+      description: "Delegate a subtask.",
+      inputSchema: z.object({
+        task: z.string(),
+        role: z.enum(["orchestrator", "coder", "reviewer", "researcher", "browser"]).optional(),
+      }),
+      execute: async ({ task, role }) => {
+        return callSubordinate(task, context.projectId, context.agentNumber, context.history, role as any);
+      },
+    });
+  }
+
+  tools.manage_tasks = tool({
+    description: "Manage a multi-task plan. Use this to create a plan with sub-tasks, add tasks, and track their status. Ideal for complex workflows like codebase refactoring.",
+    inputSchema: z.object({
+      action: z.enum(["create_plan", "add_task", "update_task", "get_plan"]),
+      goal: z.string().optional().describe("Main goal for create_plan"),
+      planId: z.string().optional().describe("Required for all actions except create_plan"),
+      task: z.object({
+        id: z.string().describe("Unique short ID for the task (e.g. 'ui-1')"),
+        title: z.string(),
+        description: z.string().describe("Specific instructions for the specialist"),
+        role: z.enum(["orchestrator", "coder", "reviewer", "researcher"]),
+        dependencies: z.array(z.string()).optional()
+      }).optional(),
+      status: z.enum(["pending", "in_progress", "completed", "failed"]).optional(),
+      result: z.string().optional(),
+      error: z.string().optional()
+    }),
+    execute: async (input) => {
+      try {
+        if (input.action === "create_plan") {
+          if (!input.goal) return "Goal is required to create a plan.";
+          const plan = await orchestrationService.createPlan(input.goal);
+          return `Plan created successfully. ID: ${plan.id}\nGoal: ${plan.goal}`;
+        }
+
+        if (!input.planId) return "planId is required.";
+
+        if (input.action === "add_task") {
+          if (!input.task) return "task object is required.";
+          const plan = await orchestrationService.addTask(input.planId, input.task as any);
+          return `Task "${input.task.id}" added to plan ${input.planId}.`;
+        }
+
+        if (input.action === "update_task") {
+          if (!input.task?.id || !input.status) return "task.id and status are required.";
+          await orchestrationService.updateTaskStatus(input.planId, input.task.id, input.status as any, input.result, input.error);
+          return `Task "${input.task.id}" updated to ${input.status} in plan ${input.planId}.`;
+        }
+
+        if (input.action === "get_plan") {
+          const plan = await orchestrationService.getPlanStatus(input.planId);
+          return JSON.stringify(plan, null, 2);
+        }
+
+        return "Unknown action.";
+      } catch (e) {
+        return `Error: ${e instanceof Error ? e.message : String(e)}`;
+      }
     }
+  });
 
   return tools;
 }
+
