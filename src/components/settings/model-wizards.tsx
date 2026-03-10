@@ -33,25 +33,23 @@ function StepIndicator({
         className={`
           flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold
           transition-all duration-300 shrink-0
-          ${
-            completed
-              ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
-              : active
-                ? "bg-primary text-primary-foreground shadow-md shadow-primary/30 ring-2 ring-primary/20"
-                : "bg-muted text-muted-foreground"
+          ${completed
+            ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+            : active
+              ? "bg-primary text-primary-foreground shadow-md shadow-primary/30 ring-2 ring-primary/20"
+              : "bg-muted text-muted-foreground"
           }
         `}
       >
         {completed ? <Check className="size-3.5" /> : step}
       </div>
       <span
-        className={`text-sm transition-colors duration-200 ${
-          active
+        className={`text-sm transition-colors duration-200 ${active
             ? "text-foreground font-medium"
             : completed
               ? "text-emerald-600 dark:text-emerald-400"
               : "text-muted-foreground"
-        }`}
+          }`}
       >
         {label}
       </span>
@@ -382,9 +380,8 @@ export function ChatModelWizard({
       </div>
 
       <div
-        className={`space-y-2 transition-all duration-300 ${
-          !hasProvider ? "opacity-40 pointer-events-none" : ""
-        }`}
+        className={`space-y-2 transition-all duration-300 ${!hasProvider ? "opacity-40 pointer-events-none" : ""
+          }`}
       >
         <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Step 2 — Connection Method
@@ -413,9 +410,8 @@ export function ChatModelWizard({
       </div>
 
       <div
-        className={`space-y-3 transition-all duration-300 ${
-          !hasProvider || !selectedAuthMethod ? "opacity-40 pointer-events-none" : ""
-        }`}
+        className={`space-y-3 transition-all duration-300 ${!hasProvider || !selectedAuthMethod ? "opacity-40 pointer-events-none" : ""
+          }`}
       >
         <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Step 3 — Connection
@@ -500,11 +496,10 @@ export function ChatModelWizard({
 
         {isCliProvider && connectionStatus && (
           <div
-            className={`rounded-lg border px-3 py-2 text-sm ${
-              connectionStatus.connected
+            className={`rounded-lg border px-3 py-2 text-sm ${connectionStatus.connected
                 ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
                 : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
-            }`}
+              }`}
           >
             <p>{connectionStatus.message}</p>
             {connectionStatus.detail && (
@@ -523,9 +518,8 @@ export function ChatModelWizard({
 
       {(provider === "custom" || provider === "ollama") && selectedAuthMethod === "api_key" && (
         <div
-          className={`space-y-2 transition-all duration-300 ${
-            !apiKeyConnectionReady ? "opacity-40 pointer-events-none" : ""
-          }`}
+          className={`space-y-2 transition-all duration-300 ${!apiKeyConnectionReady ? "opacity-40 pointer-events-none" : ""
+            }`}
         >
           <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Base URL
@@ -544,9 +538,8 @@ export function ChatModelWizard({
       )}
 
       <div
-        className={`space-y-2 transition-all duration-300 ${
-          !hasConnection ? "opacity-40 pointer-events-none" : ""
-        }`}
+        className={`space-y-2 transition-all duration-300 ${!hasConnection ? "opacity-40 pointer-events-none" : ""
+          }`}
       >
         <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Step 4 — Model
@@ -563,9 +556,8 @@ export function ChatModelWizard({
       </div>
 
       <div
-        className={`space-y-2 transition-all duration-300 ${
-          !model ? "opacity-40 pointer-events-none" : ""
-        }`}
+        className={`space-y-2 transition-all duration-300 ${!model ? "opacity-40 pointer-events-none" : ""
+          }`}
       >
         <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Temperature
@@ -614,6 +606,22 @@ export function EmbeddingsModelWizard({
       baseUrl: "http://localhost:11434",
     },
     google: { name: "Google", requiresApiKey: true, envKey: "GOOGLE_API_KEY" },
+    nvidia: {
+      name: "NVIDIA NIM",
+      requiresApiKey: true,
+      envKey: "NVIDIA_API_KEY",
+      baseUrl: "https://integrate.api.nvidia.com/v1",
+    },
+    groq: {
+      name: "Groq",
+      requiresApiKey: true,
+      envKey: "GROQ_API_KEY",
+      baseUrl: "https://api.groq.com/openai/v1",
+    },
+    pollinations: {
+      name: "Pollinations",
+      requiresApiKey: false,
+    },
     custom: { name: "Custom (OpenAI-compatible)", requiresApiKey: true },
   };
 
@@ -709,9 +717,8 @@ export function EmbeddingsModelWizard({
       </div>
 
       <div
-        className={`space-y-2 transition-all duration-300 ${
-          !hasProvider ? "opacity-40 pointer-events-none" : ""
-        } ${!requiresApiKey ? "hidden" : ""}`}
+        className={`space-y-2 transition-all duration-300 ${!hasProvider ? "opacity-40 pointer-events-none" : ""
+          } ${!requiresApiKey ? "hidden" : ""}`}
       >
         <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Step 2 — API Key
@@ -749,9 +756,8 @@ export function EmbeddingsModelWizard({
 
       {provider === "ollama" && (
         <div
-          className={`space-y-2 transition-all duration-300 ${
-            !hasProvider ? "opacity-40 pointer-events-none" : ""
-          }`}
+          className={`space-y-2 transition-all duration-300 ${!hasProvider ? "opacity-40 pointer-events-none" : ""
+            }`}
         >
           <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Base URL
@@ -768,9 +774,8 @@ export function EmbeddingsModelWizard({
       )}
 
       <div
-        className={`space-y-2 transition-all duration-300 ${
-          !hasApiKey ? "opacity-40 pointer-events-none" : ""
-        }`}
+        className={`space-y-2 transition-all duration-300 ${!hasApiKey ? "opacity-40 pointer-events-none" : ""
+          }`}
       >
         <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {requiresApiKey ? "Step 3" : "Step 2"} — Model

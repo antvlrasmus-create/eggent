@@ -2,23 +2,23 @@ import { type AgentRole, type ModelConfig } from "@/lib/types";
 
 export const AgentRegistry: Record<AgentRole, ModelConfig> = {
     orchestrator: {
-        provider: "openrouter",
-        model: "qwen/qwen3-next-80b-instruct",
+        provider: "nvidia",
+        model: "moonshotai/kimi-k2.5",
     },
     coder: {
         provider: "nvidia",
         model: "moonshotai/kimi-k2.5",
     },
     reviewer: {
-        provider: "openrouter",
-        model: "deepseek/deepseek-r1",
+        provider: "nvidia",
+        model: "moonshotai/kimi-k2.5",
     },
     researcher: {
-        provider: "groq",
-        model: "llama-3.3-70b-versatile",
+        provider: "nvidia",
+        model: "moonshotai/kimi-k2.5",
     },
     browser: {
-        provider: "pollinations",
-        model: "gemini",
+        provider: "nvidia",
+        model: "moonshotai/kimi-k2.5",
     }
 };

@@ -8,17 +8,17 @@ export type ChatAuthMethod = "api_key" | "oauth";
 
 export interface ModelConfig {
   provider:
-    | "openai"
-    | "anthropic"
-    | "google"
-    | "openrouter"
-    | "ollama"
-    | "custom"
-    | "codex-cli"
-    | "gemini-cli"
-      | "nvidia"
-      | "groq"
-      | "pollinations";
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "openrouter"
+  | "ollama"
+  | "custom"
+  | "codex-cli"
+  | "gemini-cli"
+  | "nvidia"
+  | "groq"
+  | "pollinations";
   model: string;
   apiKey?: string;
   authMethod?: ChatAuthMethod;
@@ -31,7 +31,7 @@ export interface AppSettings {
   chatModel: ModelConfig;
   utilityModel: ModelConfig;
   embeddingsModel: {
-    provider: "openai" | "openrouter" | "google" | "ollama" | "custom" | "mock";
+    provider: "openai" | "openrouter" | "google" | "ollama" | "nvidia" | "groq" | "pollinations" | "custom" | "mock";
     model: string;
     apiKey?: string;
     baseUrl?: string;
@@ -197,12 +197,12 @@ export interface KnowledgeFile {
 // --- Agent ---
 export type AgentRole = "orchestrator" | "coder" | "reviewer" | "researcher" | "browser";
 export interface MultiAgentRoleConfig {
-    role: AgentRole;
-    model: ModelConfig;
-    systemPrompt: string;
-    tools: string[];
-    maxSteps: number;
-    temperature: number;
+  role: AgentRole;
+  model: ModelConfig;
+  systemPrompt: string;
+  tools: string[];
+  maxSteps: number;
+  temperature: number;
 }
 
 export interface AgentConfig {
@@ -212,7 +212,7 @@ export interface AgentConfig {
   memorySubdir: string;
   knowledgeSubdirs: string[];
   projectId?: string;
-    roleConfigs?: Record<AgentRole, MultiAgentRoleConfig>;
+  roleConfigs?: Record<AgentRole, MultiAgentRoleConfig>;
 }
 
 export interface ToolCall {

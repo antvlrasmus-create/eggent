@@ -66,6 +66,7 @@ export interface SubTask {
 export interface TaskPlan {
   id: string;
   goal: string;
+  chatId: string; // ID of the chat this plan belongs to
   tasks: SubTask[];
   status: 'planning' | 'executing' | 'completed' | 'failed';
 }

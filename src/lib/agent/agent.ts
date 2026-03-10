@@ -920,15 +920,10 @@ export async function runAgentText(options: {
 }): Promise<string> {
   const settings = await getSettings();
 
-  // Multi-agent injection: use role-specific config if role is provided
-  let effectiveModelConfig = settings.chatModel;
-  let effectiveRole = options.agentNumber && options.agentNumber > 0 ? ('researcher' as AgentRole) : ('orchestrator' as AgentRole); // defaults
-
-  if (options.agentNumber && options.agentNumber > 0) {
-    // For now, assume subordinates are researchers unless specified
-    const reg = (await import("@/lib/agent/registry")).AgentRegistry;
-    effectiveModelConfig = reg[effectiveRole] || settings.chatModel;
-  }
+  // Multi-agent injection: use role-specific config from registry
+  let effectiveRole: AgentRole = options.agentNumber && options.agentNumber > 0 ? 'researcher' : 'orchestrator';
+  const { AgentRegistry } = await import("./registry");
+  let effectiveModelConfig = AgentRegistry[effectiveRole] || settings.chatModel;
 
   const providerOptions = resolveModelProviderOptions(effectiveModelConfig.provider);
   const model = createModel(effectiveModelConfig, {

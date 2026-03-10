@@ -41,6 +41,24 @@ export const MODEL_PROVIDERS: Record<string, ProviderConfig> = {
     authMethods: ["api_key"],
     defaultAuthMethod: "api_key",
   },
+  nvidia: {
+    name: "NVIDIA NIM",
+    models: [
+      { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5 (NIM)" },
+      { id: "meta/llama-3.3-70b-instruct", name: "Llama 3.3 70B Instruct" },
+      { id: "nvidia/llama-3.1-nemotron-70b-instruct", name: "Llama 3.1 Nemotron 70B" },
+      { id: "deepseek-ai/deepseek-v3", name: "DeepSeek V3 (NIM)" },
+    ],
+    embeddingModels: [
+      { id: "nvidia/embed-qa-4", name: "NVIDIA Embed QA 4", dimensions: 1024 },
+      { id: "baai/bge-m3", name: "BGE-M3 (NIM)", dimensions: 1024 },
+    ],
+    envKey: "NVIDIA_API_KEY",
+    requiresApiKey: true,
+    authMethods: ["api_key"],
+    defaultAuthMethod: "api_key",
+    baseUrl: "https://integrate.api.nvidia.com/v1",
+  },
   anthropic: {
     name: "Anthropic",
     models: [],
@@ -127,20 +145,6 @@ export const MODEL_PROVIDERS: Record<string, ProviderConfig> = {
         ],
       },
     },
-  },
-  nvidia: {
-    name: "NVIDIA NIM",
-    models: [
-      { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5 (NIM)" },
-      { id: "meta/llama-3.3-70b-instruct", name: "Llama 3.3 70B Instruct" },
-      { id: "nvidia/llama-3.1-nemotron-70b-instruct", name: "Llama 3.1 Nemotron 70B" },
-      { id: "deepseek-ai/deepseek-v3", name: "DeepSeek V3 (NIM)" },
-    ],
-    envKey: "NVIDIA_API_KEY",
-    requiresApiKey: true,
-    authMethods: ["api_key"],
-    defaultAuthMethod: "api_key",
-    baseUrl: "https://integrate.api.nvidia.com/v1",
   },
   groq: {
     name: "Groq",
