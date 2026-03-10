@@ -2,10 +2,10 @@ import { tool } from "ai";
 import type { ToolSet } from "ai";
 import { z } from "zod";
 import fs from "fs/promises";
-import { constants as fsConstants } from "fs";
+// import { constants as fsConstants } from "fs";
 import path from "path";
 import type { AgentContext } from "@/lib/agent/types";
-import type { AppSettings, McpServerConfig } from "@/lib/types";
+import type { AppSettings /*, McpServerConfig */ } from "@/lib/types";
 import {
   clearFinishedManagedProcessSessions,
   executeCode,
@@ -17,17 +17,18 @@ import {
 } from "@/lib/tools/code-execution";
 import { memorySave, memoryLoad, memoryDelete, memorySync } from "@/lib/tools/memory-tools";
 import { knowledgeQuery } from "@/lib/tools/knowledge-query";
-import { searchWeb } from "@/lib/tools/search-engine";
+// import { searchWeb } from "@/lib/tools/search-engine";
 import { callSubordinate } from "@/lib/tools/call-subordinate";
 import { orchestrationService } from "@/lib/agent/orchestration-service";
-import { createCronTool } from "@/lib/tools/cron-tool";
+// import { createCronTool } from "@/lib/tools/cron-tool";
 import { installPackages } from "@/lib/tools/install-orchestrator";
-import { loadPdf } from "@/lib/memory/loaders/pdf-loader";
+// import { loadPdf } from "@/lib/memory/loaders/pdf-loader";
 import {
   getAllProjects,
   createProject,
   getProject,
   getWorkDir,
+  /*
   loadProjectSkillsMetadata,
   loadSkillInstructions,
   createSkill,
@@ -37,31 +38,40 @@ import {
   writeSkillFile,
   upsertProjectMcpServer,
   deleteProjectMcpServer,
+  */
   deleteProject,
 } from "@/lib/storage/project-store";
 
+/*
 const SKILL_RESOURCE_LIST_LIMIT = 60;
-const SKILL_RESOURCE_READ_MAX_CHARS = 24000;
 const SKILL_REQUIRED_AUTOLOAD_MAX_FILES = 4;
 const SKILL_REQUIRED_AUTOLOAD_MAX_CHARS_TOTAL = 50000;
 const SKILL_REQUIRED_AUTOLOAD_MAX_CHARS_PER_FILE = 18000;
+*/
+/*
 const CODE_EXEC_MAX_CHARS = 20000;
 const CODE_EXEC_MAX_LINES = 800;
 const TEXT_FILE_READ_MAX_CHARS = 30000;
 const TEXT_FILE_WRITE_MAX_CHARS = 400000;
 const PDF_FILE_READ_MAX_CHARS = 30000;
 const TELEGRAM_SEND_FILE_MAX_BYTES = 45 * 1024 * 1024;
+*/
 
+/*
 interface TelegramRuntimeData {
   botToken: string;
   chatId: string | number;
 }
+*/
 
+/*
 function getCurrentUserMessageText(context: AgentContext): string {
   const value = context.data?.currentUserMessage;
   return typeof value === "string" ? value.trim() : "";
 }
+*/
 
+/*
 function userExplicitlyRequestedProcessKill(context: AgentContext): boolean {
   const text = getCurrentUserMessageText(context);
   if (!text) return false;
@@ -77,7 +87,9 @@ function userExplicitlyRequestedProcessKill(context: AgentContext): boolean {
 
   return killIntent.test(text);
 }
+*/
 
+/*
 function getTelegramRuntimeData(context: AgentContext): TelegramRuntimeData | null {
   const raw = context.data?.telegram;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -91,6 +103,7 @@ function getTelegramRuntimeData(context: AgentContext): TelegramRuntimeData | nu
   if (!botToken || chatId === null) return null;
   return { botToken, chatId };
 }
+*/
 
 function resolveOutgoingFilePath(context: AgentContext, rawPath: string): string {
   const value = rawPath.trim();
@@ -224,6 +237,7 @@ async function allocateProjectId(baseId: string): Promise<string> {
   return candidate;
 }
 
+/*
 function parseLocalMarkdownLinks(markdown: string): string[] {
   const result: string[] = [];
   const seen = new Set<string>();
@@ -267,11 +281,15 @@ function normalizeLocalMarkdownLinkTarget(rawTarget: string): string | null {
   const cleaned = target.split("#")[0].split("?")[0].trim();
   return cleaned || null;
 }
+*/
 
+/*
 function parseRequiredSkillResourceLinks(markdown: string): string[] {
   return parseLocalMarkdownLinks(markdown);
 }
+*/
 
+/*
 function inferLanguageFromPath(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();
   switch (ext) {
@@ -300,7 +318,9 @@ function inferLanguageFromPath(filePath: string): string {
       return "text";
   }
 }
+*/
 
+/*
 async function resolveSkillLocalFile(
   skillDir: string,
   relativePath: string
@@ -322,7 +342,9 @@ async function resolveSkillLocalFile(
     return null;
   }
 }
+*/
 
+/*
 async function isDirectory(dirPath: string): Promise<boolean> {
   try {
     const stat = await fs.stat(dirPath);
@@ -331,7 +353,9 @@ async function isDirectory(dirPath: string): Promise<boolean> {
     return false;
   }
 }
+*/
 
+/*
 async function collectSkillFilesRecursive(
   rootDir: string,
   skillDir: string,
@@ -360,14 +384,16 @@ async function collectSkillFilesRecursive(
       }
       if (!entry.isFile()) continue;
 
-      const relative = path.relative(skillDir, fullPath).replaceAll("\\", "/");
+      const relative = path.relative(skillDir, fullPath).replace(/\\/g, "/");
       results.push(relative);
     }
   }
 
   return results;
 }
+*/
 
+/*
 async function listSkillResourcePaths(
   skillDir: string,
   skillBody: string
@@ -385,7 +411,7 @@ async function listSkillResourcePaths(
     if (result.length >= SKILL_RESOURCE_LIST_LIMIT) break;
     const fullPath = await resolveSkillLocalFile(skillDir, link);
     if (!fullPath) continue;
-    const relative = path.relative(skillDir, fullPath).replaceAll("\\", "/");
+    const relative = path.relative(skillDir, fullPath).replace(/\\/g, "/");
     pushUnique(relative);
   }
 
@@ -403,6 +429,7 @@ async function listSkillResourcePaths(
 
   return result;
 }
+*/
 
 interface RequiredSkillResourceContent {
   relativePath: string;
@@ -428,6 +455,7 @@ interface RequiredSkillResourceAutoloadReport {
   skipped: RequiredSkillResourceSkip[];
 }
 
+/*
 async function loadRequiredSkillResources(
   skillDir: string,
   skillBody: string
@@ -474,7 +502,7 @@ async function loadRequiredSkillResources(
     totalChars += content.length;
 
     loaded.push({
-      relativePath: path.relative(skillDir, fullPath).replaceAll("\\", "/"),
+      relativePath: path.relative(skillDir, fullPath).replace(/\\/g, "/"),
       language: inferLanguageFromPath(fullPath),
       content,
       truncated,
@@ -487,7 +515,9 @@ async function loadRequiredSkillResources(
     skipped,
   };
 }
+*/
 
+/*
 function formatRequiredResourceSkipReason(reason: RequiredResourceSkipReason): string {
   switch (reason) {
     case "not_found":
@@ -502,6 +532,7 @@ function formatRequiredResourceSkipReason(reason: RequiredResourceSkipReason): s
       return reason;
   }
 }
+*/
 
 export function createAgentTools(
   context: AgentContext,
@@ -517,7 +548,7 @@ export function createAgentTools(
         .string()
         .describe("Your final response message to the user in markdown format"),
     }),
-    execute: async ({ message }) => {
+    execute: async ({ message }: { message: string }) => {
       return message;
     },
   });
@@ -589,10 +620,10 @@ export function createAgentTools(
           .describe("Project name (exact or partial, case-insensitive)"),
       })
       .refine(
-        (value) => Boolean(value.project_id?.trim() || value.project_name?.trim()),
+        (value: { project_id?: string; project_name?: string }) => Boolean(value.project_id?.trim() || value.project_name?.trim()),
         "Provide project_id or project_name"
       ),
-    execute: async ({ project_id, project_name }) => {
+    execute: async ({ project_id, project_name }: { project_id?: string; project_name?: string }) => {
       const projects = await getAllProjects();
       if (projects.length === 0) {
         return {
@@ -706,6 +737,12 @@ export function createAgentTools(
       instructions,
       memory_mode,
       project_id,
+    }: {
+      name: string;
+      description?: string;
+      instructions?: string;
+      memory_mode?: "global" | "isolated";
+      project_id?: string;
     }) => {
       const trimmedName = name.trim();
       if (!trimmedName) {
@@ -755,7 +792,7 @@ export function createAgentTools(
     inputSchema: z.object({
       project_id: z.string().describe("The exact ID of the project to delete"),
     }),
-    execute: async ({ project_id }) => {
+    execute: async ({ project_id }: { project_id: string }) => {
       const trimmedId = project_id.trim();
       if (!trimmedId) {
         return {
@@ -831,11 +868,23 @@ export function createAgentTools(
           .max(120000)
           .optional(),
       }),
-      execute: async ({ runtime, code, session, background, yield_ms }) => {
+      execute: async ({
+        runtime,
+        code,
+        session,
+        background,
+        yield_ms,
+      }: {
+        runtime: string;
+        code: string;
+        session: number;
+        background?: boolean;
+        yield_ms?: number;
+      }) => {
         const normalizedCode = code.replace(/\r\n/g, "\n");
         const sanitizedCode = normalizedCode.replace(/\s+$/, "");
         const cwd = resolveContextCwd(context);
-        return executeCode(runtime, sanitizedCode, session, settings.codeExecution, cwd, {
+        return executeCode(runtime as any, sanitizedCode, session, settings.codeExecution, cwd, {
           background,
           yieldMs: typeof yield_ms === "number" ? yield_ms : undefined,
         });
@@ -852,7 +901,19 @@ export function createAgentTools(
         global: z.boolean().default(false),
         timeout_seconds: z.number().int().min(1).max(1800).default(600),
       }),
-      execute: async ({ kind, packages, prefer_manager, global, timeout_seconds }) => {
+      execute: async ({
+        kind,
+        packages,
+        prefer_manager,
+        global,
+        timeout_seconds,
+      }: {
+        kind: "auto" | "node" | "python" | "go" | "uv" | "apt";
+        packages: string[];
+        prefer_manager?: string;
+        global?: boolean;
+        timeout_seconds?: number;
+      }) => {
         const cwd = resolveContextCwd(context);
         return installPackages({
           kind,
@@ -860,7 +921,7 @@ export function createAgentTools(
           preferManager: prefer_manager,
           global,
           cwd,
-          timeoutMs: timeout_seconds * 1000,
+          timeoutMs: timeout_seconds! * 1000,
         });
       },
     });
@@ -874,7 +935,19 @@ export function createAgentTools(
         offset: z.number().int().optional(),
         limit: z.number().int().optional(),
       }),
-      execute: async ({ action, session_id, timeout_ms, offset, limit }) => {
+      execute: async ({
+        action,
+        session_id,
+        timeout_ms,
+        offset,
+        limit,
+      }: {
+        action: "list" | "poll" | "log" | "kill" | "clear" | "remove";
+        session_id?: string;
+        timeout_ms?: number;
+        offset?: number;
+        limit?: number;
+      }) => {
         if (action === "list") return { success: true, sessions: listManagedProcessSessions() };
         if (action === "poll") return pollManagedProcessSession(session_id!, timeout_ms);
         if (action === "log") return readManagedProcessSessionLog(session_id!, offset, limit);
@@ -893,7 +966,17 @@ export function createAgentTools(
       max_lines: z.number().int().default(300),
       max_chars: z.number().int().default(12000),
     }),
-    execute: async ({ file_path, start_line, max_lines, max_chars }) => {
+    execute: async ({
+      file_path,
+      start_line,
+      max_lines,
+      max_chars,
+    }: {
+      file_path: string;
+      start_line: number;
+      max_lines: number;
+      max_chars: number;
+    }) => {
       const resolvedPath = await resolveReadableFilePath(context, file_path);
       const raw = await fs.readFile(resolvedPath, "utf-8");
       const lines = raw.split("\n");
@@ -909,7 +992,15 @@ export function createAgentTools(
       content: z.string(),
       overwrite: z.boolean().default(true),
     }),
-    execute: async ({ file_path, content, overwrite }) => {
+    execute: async ({
+      file_path,
+      content,
+      _overwrite,
+    }: {
+      file_path: string;
+      content: string;
+      _overwrite: boolean;
+    }) => {
       const resolvedPath = resolveOutgoingFilePath(context, file_path);
       await fs.mkdir(path.dirname(resolvedPath), { recursive: true });
       await fs.writeFile(resolvedPath, content, "utf-8");
@@ -924,7 +1015,7 @@ export function createAgentTools(
         text: z.string(),
         area: z.enum(["main", "fragments", "solutions", "instruments"]).default("main"),
       }),
-      execute: async ({ text, area }) => {
+      execute: async ({ text, area }: { text: string; area: "main" | "fragments" | "solutions" | "instruments" }) => {
         return memorySave(text, area, context.memorySubdir, settings);
       },
     });
@@ -935,7 +1026,7 @@ export function createAgentTools(
         query: z.string(),
         limit: z.number().default(5),
       }),
-      execute: async ({ query, limit }) => {
+      execute: async ({ query, limit }: { query: string; limit: number }) => {
         return memoryLoad(query, limit, context.memorySubdir, settings);
       },
     });
@@ -945,7 +1036,7 @@ export function createAgentTools(
       inputSchema: z.object({
         query: z.string(),
       }),
-      execute: async ({ query }) => {
+      execute: async ({ query }: { query: string }) => {
         return memoryDelete(query, context.memorySubdir, settings);
       },
     });
@@ -965,7 +1056,7 @@ export function createAgentTools(
       query: z.string(),
       limit: z.number().default(5),
     }),
-    execute: async ({ query, limit }) => {
+    execute: async ({ query, limit }: { query: string; limit: number }) => {
       return knowledgeQuery(query, limit, context.knowledgeSubdirs, settings);
     },
   });
@@ -977,7 +1068,7 @@ export function createAgentTools(
         task: z.string(),
         role: z.enum(["orchestrator", "coder", "reviewer", "researcher", "browser"]).optional(),
       }),
-      execute: async ({ task, role }) => {
+      execute: async ({ task, role }: { task: string; role?: "orchestrator" | "coder" | "reviewer" | "researcher" | "browser" }) => {
         return callSubordinate(task, context.projectId, context.agentNumber, context.history, role as any);
       },
     });
@@ -1000,7 +1091,7 @@ export function createAgentTools(
       result: z.string().optional(),
       error: z.string().optional()
     }),
-    execute: async (input) => {
+    execute: async (input: any) => {
       try {
         if (input.action === "create_plan") {
           if (!input.goal) return "Goal is required to create a plan.";
@@ -1012,7 +1103,7 @@ export function createAgentTools(
 
         if (input.action === "add_task") {
           if (!input.task) return "task object is required.";
-          const plan = await orchestrationService.addTask(input.planId, input.task as any);
+          const _plan = await orchestrationService.addTask(input.planId, input.task as any);
           return `Task "${input.task.id}" added to plan ${input.planId}.`;
         }
 
