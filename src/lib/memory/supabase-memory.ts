@@ -167,7 +167,6 @@ export async function getAllMemories(
 }
 
 const KNOWLEDGE_AREA = "knowledge";
-const FILENAME_META = "filename";
 
 /**
  * Get chunk counts per filename for knowledge area from Supabase

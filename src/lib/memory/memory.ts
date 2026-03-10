@@ -18,7 +18,7 @@ interface MemoryDB {
 const dbCache: Map<string, MemoryDB> = new Map();
 
 function getDbPath(subdir: string): string {
-  return path.join(DATA_DIR, "memory", subdir, \"vectors.json\");
+  return path.join(DATA_DIR, "memory", subdir, "vectors.json");
 }
 
 /** Remove subdir from in-memory cache (e.g. when project is deleted). */
@@ -40,7 +40,7 @@ async function loadDB(subdir: string): Promise<MemoryDB> {
 
   const dbPath = getDbPath(subdir);
   try {
-    const content = await fs.readFile(dbPath, \"utf-8\");
+    const content = await fs.readFile(dbPath, "utf-8");
     const db: MemoryDB = JSON.parse(content);
     dbCache.set(subdir, db);
     return db;
@@ -62,7 +62,7 @@ async function saveDB(subdir: string, db: MemoryDB): Promise<void> {
   await ensureDir(path.dirname(dbPath));
   db.metadata.lastUpdated = new Date().toISOString();
   db.metadata.count = db.documents.length;
-  await fs.writeFile(dbPath, JSON.stringify(db), \"utf-8\");
+  await fs.writeFile(dbPath, JSON.stringify(db), "utf-8");
   dbCache.set(subdir, db);
 }
 
@@ -101,7 +101,7 @@ export async function insertMemory(
 
   const embeddings = await embedTexts([text], settings.embeddingsModel);
   if (!embeddings || embeddings.length === 0) {
-    throw new Error(\"Failed to generate embedding\");
+    throw new Error("Failed to generate embedding");
   }
 
   const id = crypto.randomUUID();
@@ -248,8 +248,8 @@ export async function getAllMemories(
   }));
 }
 
-const KNOWLEDGE_AREA = \"knowledge\";
-const FILENAME_META = \"filename\";
+const KNOWLEDGE_AREA = "knowledge";
+const FILENAME_META = "filename";
 
 /**
  * Get chunk counts per filename for knowledge area
@@ -266,7 +266,7 @@ export async function getChunkCountsByFilename(
   for (const doc of db.documents) {
     if (doc.metadata?.area !== KNOWLEDGE_AREA) continue;
     const name = doc.metadata[FILENAME_META];
-    if (typeof name === \"string\") {
+    if (typeof name === "string") {
       counts[name] = (counts[name] ?? 0) + 1;
     }
   }

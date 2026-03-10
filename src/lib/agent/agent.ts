@@ -348,6 +348,9 @@ function applyGlobalToolLoopGuard(tools: ToolSet): ToolSet {
           );
         }
 
+        if (!toolDef.execute) {
+          return `Error: Tool "${toolName}" is not executable in this context.`;
+        }
         const output = await toolDef.execute(input as never, options as never);
         const recoveryHint = buildAutoRecoveryHint(toolName, output);
         const outputWithHint = appendRecoveryHint(output, recoveryHint);

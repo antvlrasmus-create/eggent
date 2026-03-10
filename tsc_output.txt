@@ -1,0 +1,18 @@
+bundled-skills/remotion/rules/assets/charts-bar-chart.tsx(1,24): error TS2307: Cannot find module '@remotion/google-fonts/Inter' or its corresponding type declarations.
+bundled-skills/remotion/rules/assets/charts-bar-chart.tsx(2,69): error TS2307: Cannot find module 'remotion' or its corresponding type declarations.
+bundled-skills/remotion/rules/assets/text-animations-typewriter.tsx(6,8): error TS2307: Cannot find module 'remotion' or its corresponding type declarations.
+bundled-skills/remotion/rules/assets/text-animations-word-highlight.tsx(1,24): error TS2307: Cannot find module '@remotion/google-fonts/Inter' or its corresponding type declarations.
+bundled-skills/remotion/rules/assets/text-animations-word-highlight.tsx(3,69): error TS2307: Cannot find module 'remotion' or its corresponding type declarations.
+src/lib/agent/agent.ts(351,30): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/lib/agent/agent.ts(351,30): error TS18048: 'toolDef.execute' is possibly 'undefined'.
+src/lib/memory/knowledge.ts(58,55): error TS2345: Argument of type '{ chunkSize: number; chunkOverlap: number; separators: readonly ["\n\n", "\n", " ", ""]; }' is not assignable to parameter of type 'Partial<TextSplitterOptions>'.
+  Types of property 'separators' are incompatible.
+    The type 'readonly ["\n\n", "\n", " ", ""]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.
+src/lib/memory/knowledge.ts(98,55): error TS2345: Argument of type '{ chunkSize: number; chunkOverlap: number; separators: readonly ["\n\n", "\n", " ", ""]; }' is not assignable to parameter of type 'Partial<TextSplitterOptions>'.
+  Types of property 'separators' are incompatible.
+    The type 'readonly ["\n\n", "\n", " ", ""]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.
+src/lib/memory/supabase-memory.ts(170,7): error TS6133: 'FILENAME_META' is declared but its value is never read.
+src/lib/providers/model-config.ts(157,5): error TS2353: Object literal may only specify known properties, and 'defaultPath' does not exist in type 'ProviderConfig'.
+src/lib/tools/tool.ts(434,11): error TS6196: 'RequiredSkillResourceContent' is declared but never used.
+src/lib/tools/tool.ts(447,11): error TS6196: 'RequiredSkillResourceSkip' is declared but never used.
+src/lib/tools/tool.ts(1106,17): error TS6133: '_plan' is declared but its value is never read.

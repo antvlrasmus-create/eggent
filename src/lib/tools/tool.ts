@@ -431,6 +431,7 @@ async function listSkillResourcePaths(
 }
 */
 
+/*
 interface RequiredSkillResourceContent {
   relativePath: string;
   language: string;
@@ -448,12 +449,13 @@ interface RequiredSkillResourceSkip {
   relativePath: string;
   reason: RequiredResourceSkipReason;
 }
+*/
 
-interface RequiredSkillResourceAutoloadReport {
-  detectedLinks: string[];
-  loaded: RequiredSkillResourceContent[];
-  skipped: RequiredSkillResourceSkip[];
-}
+// interface RequiredSkillResourceAutoloadReport {
+//   detectedLinks: string[];
+//   loaded: RequiredSkillResourceContent[];
+//   skipped: RequiredSkillResourceSkip[];
+// }
 
 /*
 async function loadRequiredSkillResources(
@@ -995,11 +997,11 @@ export function createAgentTools(
     execute: async ({
       file_path,
       content,
-      _overwrite,
+      overwrite: _overwrite,
     }: {
       file_path: string;
       content: string;
-      _overwrite: boolean;
+      overwrite: boolean;
     }) => {
       const resolvedPath = resolveOutgoingFilePath(context, file_path);
       await fs.mkdir(path.dirname(resolvedPath), { recursive: true });
@@ -1095,15 +1097,15 @@ export function createAgentTools(
       try {
         if (input.action === "create_plan") {
           if (!input.goal) return "Goal is required to create a plan.";
-          const plan = await orchestrationService.createPlan(input.goal);
-          return `Plan created successfully. ID: ${plan.id}\nGoal: ${plan.goal}`;
+          const _plan = await orchestrationService.createPlan(input.goal);
+          return `Plan created successfully. ID: ${_plan.id}\nGoal: ${_plan.goal}`;
         }
 
         if (!input.planId) return "planId is required.";
 
         if (input.action === "add_task") {
           if (!input.task) return "task object is required.";
-          const _plan = await orchestrationService.addTask(input.planId, input.task as any);
+          await orchestrationService.addTask(input.planId, input.task as any);
           return `Task "${input.task.id}" added to plan ${input.planId}.`;
         }
 
@@ -1114,8 +1116,8 @@ export function createAgentTools(
         }
 
         if (input.action === "get_plan") {
-          const plan = await orchestrationService.getPlanStatus(input.planId);
-          return JSON.stringify(plan, null, 2);
+          const _plan = await orchestrationService.getPlanStatus(input.planId);
+          return JSON.stringify(_plan, null, 2);
         }
 
         return "Unknown action.";

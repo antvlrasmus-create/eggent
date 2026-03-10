@@ -10,6 +10,7 @@ export interface ProviderConfig {
   embeddingModels?: { id: string; name: string; dimensions: number }[];
   envKey?: string;
   baseUrl?: string;
+  defaultPath?: string;
   requiresApiKey: boolean;
   authMethods?: ChatAuthMethod[];
   defaultAuthMethod?: ChatAuthMethod;
