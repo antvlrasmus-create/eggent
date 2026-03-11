@@ -168,10 +168,34 @@ export async function GET(req: NextRequest) {
                 break;
             }
 
+            case "nvidia": {
+                const res = await fetch("https://integrate.api.nvidia.com/v1/models", {
+                    headers: { Authorization: `Bearer ${apiKey}` },
+                });
+                if (!res.ok) throw new Error(`NVIDIA API error: ${res.status}`);
+                const data = await res.json();
+                models = (data.data || [])
+                    .filter((m: { id: string }) => {
+                        if (type === "embedding") {
+                            // NVIDIA embedding models usually have 'embed' in ID
+                            return m.id.includes("embed") || m.id.includes("bge-m3");
+                        }
+                        // Chat models
+                        return !m.id.includes("embed") && !m.id.includes("bge-m3") && !m.id.includes("ranking");
+                    })
+                    .map((m: { id: string }) => ({ id: m.id, name: m.id }))
+                    .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
+                break;
+            }
+
             default: {
                 const providerConfig = MODEL_PROVIDERS[provider];
                 if (providerConfig) {
-                    models = [...providerConfig.models];
+                    if (type === "embedding" && providerConfig.embeddingModels) {
+                        models = [...providerConfig.embeddingModels];
+                    } else {
+                        models = [...providerConfig.models];
+                    }
                 }
                 break;
             }

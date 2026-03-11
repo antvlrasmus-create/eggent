@@ -162,9 +162,16 @@ function useModels(
           "ollama",
           "anthropic",
           "google",
+          "nvidia",
         ];
-        if (!dynamicProviders.includes(provider) && providerConfig?.models?.length) {
-          setModels([...providerConfig.models]);
+        if (!dynamicProviders.includes(provider)) {
+          if (type === "embedding" && providerConfig?.embeddingModels?.length) {
+            setModels([...providerConfig.embeddingModels]);
+          } else if (providerConfig?.models?.length) {
+            setModels([...providerConfig.models]);
+          } else {
+            setModels([]);
+          }
         } else {
           setModels([]);
         }
@@ -180,8 +187,14 @@ function useModels(
         "anthropic",
         "google",
       ];
-      if (!dynamicProviders.includes(provider) && providerConfig?.models?.length) {
-        setModels([...providerConfig.models]);
+      if (!dynamicProviders.includes(provider)) {
+        if (type === "embedding" && providerConfig?.embeddingModels?.length) {
+          setModels([...providerConfig.embeddingModels]);
+        } else if (providerConfig?.models?.length) {
+          setModels([...providerConfig.models]);
+        } else {
+          setModels([]);
+        }
       } else {
         setModels([]);
       }
