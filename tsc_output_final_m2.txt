@@ -1,0 +1,6 @@
+bundled-skills/remotion/rules/assets/charts-bar-chart.tsx(1,24): error TS2307: Cannot find module '@remotion/google-fonts/Inter' or its corresponding type declarations.
+bundled-skills/remotion/rules/assets/charts-bar-chart.tsx(2,69): error TS2307: Cannot find module 'remotion' or its corresponding type declarations.
+bundled-skills/remotion/rules/assets/text-animations-typewriter.tsx(6,8): error TS2307: Cannot find module 'remotion' or its corresponding type declarations.
+bundled-skills/remotion/rules/assets/text-animations-word-highlight.tsx(1,24): error TS2307: Cannot find module '@remotion/google-fonts/Inter' or its corresponding type declarations.
+bundled-skills/remotion/rules/assets/text-animations-word-highlight.tsx(3,69): error TS2307: Cannot find module 'remotion' or its corresponding type declarations.
+test_simple.ts(2,14): error TS7006: Parameter 'msg' implicitly has an 'any' type.

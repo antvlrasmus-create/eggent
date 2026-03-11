@@ -1077,9 +1077,9 @@ export function createAgentTools(
   }
 
   tools.manage_tasks = tool({
-    description: "Manage a multi-task plan. Use this to create a plan with sub-tasks, add tasks, and track their status. Ideal for complex workflows like codebase refactoring.",
+    description: "Manage a multi-task plan. Use this to create a plan with sub-tasks, add tasks, and track their status. Use 'orchestrate' for full autonomous decomposition and execution of a complex goal.",
     inputSchema: z.object({
-      action: z.enum(["create_plan", "add_task", "update_task", "get_plan"]),
+      action: z.enum(["create_plan", "add_task", "update_task", "get_plan", "execute_plan", "orchestrate"]),
       goal: z.string().optional().describe("Main goal for create_plan"),
       planId: z.string().optional().describe("Required for all actions except create_plan"),
       task: z.object({
@@ -1097,7 +1097,7 @@ export function createAgentTools(
       try {
         if (input.action === "create_plan") {
           if (!input.goal) return "Goal is required to create a plan.";
-          const _plan = await orchestrationService.createPlan(input.goal);
+          const _plan = await orchestrationService.createPlan(input.goal, context.chatId);
           return `Plan created successfully. ID: ${_plan.id}\nGoal: ${_plan.goal}`;
         }
 
@@ -1118,6 +1118,26 @@ export function createAgentTools(
         if (input.action === "get_plan") {
           const _plan = await orchestrationService.getPlanStatus(input.planId);
           return JSON.stringify(_plan, null, 2);
+        }
+
+        if (input.action === "execute_plan") {
+          // Fire and forget execution for long running tasks
+          orchestrationService.executePlan(input.planId).catch(err => {
+            console.error(`Autonomous execution failed for plan ${input.planId}:`, err);
+          });
+          return `Plan ${input.planId} is now executing in the background. Progress can be tracked in the Plans Dashboard.`;
+        }
+
+        if (input.action === "orchestrate") {
+          if (!input.goal) return "goal is required for orchestration.";
+          const _plan = await orchestrationService.createPlanFromGoal(input.goal, context.chatId, context.projectId);
+          
+          // Execute in background
+          orchestrationService.executePlan(_plan.id).catch(err => {
+            console.error(`Autonomous orchestration failed for plan ${_plan.id}:`, err);
+          });
+
+          return `Autonomous orchestration started for goal: "${input.goal}".\nPlan ID: ${_plan.id}\nTasks: ${_plan.tasks.length}\nThe agents will now work in the background. You can track progress in the Plans Dashboard.`;
         }
 
         return "Unknown action.";

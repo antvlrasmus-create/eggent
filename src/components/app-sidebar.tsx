@@ -17,6 +17,7 @@ import {
   Puzzle,
   Settings2,
   Trash2,
+  Workflow,
   Wrench,
 } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
@@ -297,6 +298,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <Link href="/dashboard/mcp">
                   <Wrench className="size-4" />
                   <span>MCP</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href="/dashboard/plans">
+                  <Workflow className="size-4" />
+                  <span>Plans</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
