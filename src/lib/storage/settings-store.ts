@@ -29,9 +29,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     maxTokens: 2048,
   },
   embeddingsModel: {
-    provider: "openai",
-    model: "text-embedding-3-small",
-    dimensions: 1536,
+    provider: "nvidia",
+    model: "nvidia/embed-qa-4",
+    dimensions: 1024,
   },
   codeExecution: {
     enabled: true,

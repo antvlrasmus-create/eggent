@@ -1708,6 +1708,13 @@ export function createEmbeddingModel(config: {
       return google.embedding(config.model);
     }
 
+    case "nvidia":
+      return createOpenAICompatibleEmbeddingModel(config, {
+        providerName: "nvidia",
+        apiKey: config.apiKey || process.env.NVIDIA_API_KEY || "",
+        fallbackBaseUrl: "https://integrate.api.nvidia.com/v1",
+      });
+
     default:
       throw new Error(`Unsupported embeddings provider: ${config.provider}`);
   }

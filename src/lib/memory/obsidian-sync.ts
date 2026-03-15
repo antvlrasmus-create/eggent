@@ -118,10 +118,17 @@ export async function syncObsidianWebDAV(
             }
 
             // It's changed or new. We need to index it.
-            // (Optional: we would delete old chunks, but for now we just insert or rely on pgvector replace mechanics in next steps)
+            const subdir = projectId ? projectId : "main";
+
+            try {
+                const { deleteMemoryByMetadata } = await import("./memory");
+                await deleteMemoryByMetadata("filepath", file.filename, subdir);
+            } catch (err) {
+                console.warn(`Failed to delete old chunks for ${file.filename}`, err);
+            }
 
             const chunks = chunkText(content);
-            const subdir = projectId ? projectId : "main";
+            // subdir already declared above
 
             for (let i = 0; i < chunks.length; i++) {
                 await insertMemory(chunks[i], "obsidian", subdir, settings, {

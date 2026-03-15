@@ -4,7 +4,7 @@ create extension if not exists vector;
 create table eggent_memory (
     id uuid primary key default gen_random_uuid(),
     text text not null,
-    embedding vector(768),
+    embedding vector(1024),
     -- Adjust dimension based on embeddingsModel if needed (e.g., 1024 for multilngual, 1536 for OpenAI)
     metadata jsonb default '{}'::jsonb,
     subdir text not null,
@@ -12,7 +12,7 @@ create table eggent_memory (
 );
 -- Create match_memories RPC function
 create or replace function match_memories(
-        query_embedding vector(768),
+        query_embedding vector(1024),
         -- Make sure this matches table embedding dimension
         match_threshold float,
         match_count int,
